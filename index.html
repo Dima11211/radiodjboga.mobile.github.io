@@ -2,19 +2,9 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <!-- Важный тег для правильного отображения на мобильных -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Мобильная версия</title>
     <style>
-            .player-container {
-        position: absolute;    /* Позволяет двигать */
-        top: 1000px;           /* Положение сверху */
-        left: -12px;           /* Положение слева */
-        width: 700px;          /* Ширина */
-        height: 500px;          /* Высота */
-        z-index: 1000;         /* Чтобы был поверх */
-    }
-        /* Базовый сброс стилей для мобильных */
         * {
             margin: 0;
             padding: 0;
@@ -22,29 +12,44 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #ffffff;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
 
-        /* Основной контейнер на всю ширину экрана */
         .mobile-container {
             width: 100%;
-            max-width: 480px; /* Ограничение для больших телефонов */
+            max-width: 480px;
             margin: 0 auto;
             padding: 16px;
-            flex: 1;
         }
 
-        /* Современные сенсорные элементы (пустые, но готовые к наполнению) */
-        .touch-area {
-            min-height: 48px; /* Минимальный размер для комфортного нажатия */
+        /* Логотип */
+        .logo-image {
             width: 100%;
+            max-width: 300px;
+            height: auto;
+            display: block;
+            margin: 20px auto; /* Центрирование */
         }
 
-        /* Заголовок для примера (пустой, но можно заполнить) */
+        /* Контейнер плеера - ИСПРАВЛЕНО */
+        .player-container {
+            width: 100%;
+            max-width: 480px;
+            margin: 20px auto;
+            padding: 0 10px;
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Адаптация плеера */
+        .cstrEmbed {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
         .mobile-header {
             width: 100%;
             height: 56px;
@@ -53,62 +58,60 @@
             margin-bottom: 16px;
         }
 
-        /* Контентная область */
         .content {
             width: 100%;
-            min-height: calc(100vh - 200px);
+            min-height: 200px;
             background-color: transparent;
         }
 
-        /* Нижняя навигация (пустая) */
         .bottom-nav {
             width: 100%;
             height: 64px;
             background-color: #f8f9fa;
             border-radius: 20px 20px 0 0;
-            margin-top: auto;
+            margin-top: 30px;
         }
-
-        /* Утилиты для отступов */
-        .mt-2 { margin-top: 8px; }
-        .mb-2 { margin-bottom: 8px; }
-        .p-2 { padding: 8px; }
     </style>
 </head>
 <body>
-    <div class="player-container">              <!-- ← Контейнер плеера -->
-    <div data-type="newStreamPlayer"        <!-- ← Сам плеер -->
-        data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
-        data-theme="light"
-        data-color="e81e4d"
-        data-channelId=""
-        data-rendered="false"
-        class="cstrEmbed">
-        <a href="https://www.caster.fm">Shoutcast Hosting</a>
-        <a href="https://www.caster.fm">Stream Hosting</a>
-        <a href="https://www.caster.fm">Radio Server Hosting</a>
-    </div>
-    <script src="//cdn.cloud.caster.fm//widgets/embed.js"></script>  <!-- ← Скрипт -->
-    </div>
-    <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" style="position: absolute; left: 0px; top: 0; width: 100%; height: auto;">
     <div class="mobile-container">
-        <!-- Пустой верхний блок (можно заменить на header) -->
+        <!-- Логотип (исправлен) -->
+        <img src="img/20260225_2221_image.png" 
+             alt="RADIO DJ BOGA" 
+             class="logo-image">
+
+        <!-- Шапка -->
         <header class="mobile-header"></header>
 
-        <!-- Основная пустая область контента -->
-        <main class="content">
-            <!-- Здесь будет контент -->
-            <div class="touch-area">
-                    
+        <!-- Контейнер плеера (исправлен) -->
+        <div class="player-container">
+            <div data-type="newStreamPlayer"
+                 data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
+                 data-theme="light"
+                 data-color="e81e4d"
+                 data-channelId=""
+                 data-rendered="false"
+                 class="cstrEmbed">
+                <a href="https://www.caster.fm">Shoutcast Hosting</a>
+                <a href="https://www.caster.fm">Stream Hosting</a>
+                <a href="https://www.caster.fm">Radio Server Hosting</a>
             </div>
-            
+            <script src="//cdn.cloud.caster.fm//widgets/embed.js"></script>
+        </div>
 
+        <!-- Контент -->
+        <main class="content">
+            <div class="touch-area">
+                <!-- Здесь контент -->
+            </div>
+        </main>
 
+        <!-- Нижняя навигация -->
+        <nav class="bottom-nav"></nav>
+    </div>
 
-    <!-- Место для подключения скриптов -->
     <script>
-        // Здесь может быть ваш JavaScript
-        console.log('Готовая мобильная оболочка');
+        console.log('Мобильная версия исправлена');
     </script>
 </body>
 </html>
