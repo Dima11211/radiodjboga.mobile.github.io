@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мобильная версия</title>
     <style>
         * {
@@ -14,7 +14,6 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #ffffff;
-            min-height: 100vh;
         }
 
         .mobile-container {
@@ -30,63 +29,39 @@
             max-width: 300px;
             height: auto;
             display: block;
-            margin: 20px auto; /* Центрирование */
+            margin: 20px auto;
         }
 
-        <img src="img/20260225_2221_image.png" class="logo-image">
-
-        <!-- Плеер сразу после логотипа -->
-        <div class="player-container">
-            ... код плеера ...
-                    width: 100%;
-            max-width: 480px;
-            margin: 20px auto;
-            padding: 0 10px;
-            background-color: #f8f9fa;
+        /* Контейнер плеера */
+        .player-container {
+            width: 100%;
+            margin: 20px 0;
+            background-color: transparent; /* Прозрачный фон */
             border-radius: 12px;
             overflow: hidden;
-        </div>
+        }
 
-        /* Адаптация плеера */
-        .cstrEmbed {
+        .cstrEmbed iframe {
             width: 100% !important;
-            max-width: 100% !important;
+            border: none !important;
         }
 
-        .mobile-header {
-            width: 100%;
-            height: 56px;
-            background-color: #f8f9fa;
-            border-radius: 12px;
-            margin-bottom: 16px;
-        }
-
+        /* Контент (пустой, готовый к наполнению) */
         .content {
             width: 100%;
-            min-height: 200px;
+            min-height: 100px;
             background-color: transparent;
-        }
-
-        .bottom-nav {
-            width: 100%;
-            height: 64px;
-            background-color: #f8f9fa;
-            border-radius: 20px 20px 0 0;
-            margin-top: 30px;
         }
     </style>
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Логотип (исправлен) -->
+        <!-- Только логотип -->
         <img src="img/20260225_2221_image.png" 
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- Шапка -->
-        <header class="mobile-header"></header>
-
-        <!-- Контейнер плеера (исправлен) -->
+        <!-- Только плеер (без лишних обводок) -->
         <div class="player-container">
             <div data-type="newStreamPlayer"
                  data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
@@ -99,12 +74,15 @@
                 <a href="https://www.caster.fm">Stream Hosting</a>
                 <a href="https://www.caster.fm">Radio Server Hosting</a>
             </div>
-            <script src="//cdn.cloud.caster.fm//widgets/embed.js"></script>
         </div>
 
+        <!-- Контент (пустой, но без серых заглушек) -->
+        <main class="content">
+            <!-- Здесь будет ваш контент -->
+        </main>
+    </div>
 
-    <script>
-        console.log('Мобильная версия исправлена');
-    </script>
+    <!-- Скрипт плеера -->
+    <script src="https://cdn.cloud.caster.fm/widgets/embed.js"></script>
 </body>
 </html>
