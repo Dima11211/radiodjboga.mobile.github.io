@@ -36,19 +36,64 @@
             width: 100%;
         }
 
-        /* Заголовок для примера (пустой, но можно заполнить) */
+        /* Заголовок с логотипом */
         .mobile-header {
             width: 100%;
-            height: 56px;
-            background-color: #f8f9fa;
-            border-radius: 12px;
-            margin-bottom: 16px;
+            padding: 16px 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        /* Стили для логотипа */
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-item {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .logo-item.radio {
+            color: #000000;
+        }
+
+        .logo-item.dji {
+            color: #000000;
+            font-weight: 700;
+        }
+
+        .logo-item.boga {
+            color: #000000;
+            font-style: italic;
+        }
+
+        /* Разделитель между логотипами */
+        .logo-divider {
+            width: 4px;
+            height: 4px;
+            background-color: #000000;
+            border-radius: 50%;
+            margin: 0 4px;
+        }
+
+        /* Альтернативный вариант с точками */
+        .logo-dots {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
         /* Контентная область */
         .content {
             width: 100%;
-            min-height: calc(100vh - 200px);
+            min-height: calc(100vh - 280px);
             background-color: transparent;
         }
 
@@ -69,8 +114,26 @@
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Пустой верхний блок (можно заменить на header) -->
-        <header class="mobile-header"></header>
+        <!-- Шапка с логотипом RADIO DJI BOGA -->
+        <header class="mobile-header">
+            <div class="logo">
+                <span class="logo-item radio">RADIO</span>
+                <span class="logo-dots">
+                    <span class="logo-divider"></span>
+                    <span class="logo-divider"></span>
+                    <span class="logo-divider"></span>
+                </span>
+                <span class="logo-item dji">DJI</span>
+                <span class="logo-dots">
+                    <span class="logo-divider"></span>
+                    <span class="logo-divider"></span>
+                    <span class="logo-divider"></span>
+                </span>
+                <span class="logo-item boga">BOGA</span>
+            </div>
+            <!-- Можно добавить иконку меню или профиля справа -->
+            <div class="touch-area" style="width: 40px; height: 40px; background-color: #f5f5f5; border-radius: 50%;"></div>
+        </header>
 
         <!-- Основная пустая область контента -->
         <main class="content">
@@ -91,7 +154,7 @@
     <!-- Место для подключения скриптов -->
     <script>
         // Здесь может быть ваш JavaScript
-        console.log('Готовая мобильная оболочка');
+        console.log('Готовая мобильная оболочка с логотипом RADIO DJI BOGA');
     </script>
 </body>
 </html>
