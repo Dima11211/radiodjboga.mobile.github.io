@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мобильная версия</title>
     <style>
+        /* Только самое необходимое */
         * {
             margin: 0;
             padding: 0;
@@ -23,7 +24,7 @@
             padding: 16px;
         }
 
-        /* Логотип */
+        /* Только логотип */
         .logo-image {
             width: 100%;
             max-width: 300px;
@@ -32,13 +33,13 @@
             margin: 20px auto;
         }
 
-        /* Контейнер плеера */
+        /* Только плеер (без фона) */
         .player-container {
             width: 100%;
             margin: 20px 0;
-            background-color: transparent; /* Прозрачный фон */
-            border-radius: 12px;
-            overflow: hidden;
+            /* НЕТ background-color */
+            /* НЕТ border */
+            /* НЕТ height */
         }
 
         .cstrEmbed iframe {
@@ -46,22 +47,22 @@
             border: none !important;
         }
 
-        /* Контент (пустой, готовый к наполнению) */
+        /* Контент (абсолютно пустой) */
         .content {
             width: 100%;
-            min-height: 100px;
-            background-color: transparent;
+            /* НЕТ min-height */
+            /* НЕТ background-color */
         }
     </style>
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Только логотип -->
+        <!-- ТОЛЬКО логотип -->
         <img src="img/20260225_2221_image.png" 
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- Только плеер (без лишних обводок) -->
+        <!-- ТОЛЬКО плеер -->
         <div class="player-container">
             <div data-type="newStreamPlayer"
                  data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
@@ -76,9 +77,9 @@
             </div>
         </div>
 
-        <!-- Контент (пустой, но без серых заглушек) -->
+        <!-- ПУСТОЙ контент (без цветов и контуров) -->
         <main class="content">
-            <!-- Здесь будет ваш контент -->
+            <!-- Здесь ничего нет - абсолютно пусто -->
         </main>
     </div>
 
