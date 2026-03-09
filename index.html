@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Мобильная версия</title>
     <style>
+            .player-container {
+        position: absolute;    /* Позволяет двигать */
+        top: 1000px;           /* Положение сверху */
+        left: -12px;           /* Положение слева */
+        width: 700px;          /* Ширина */
+        height: 500px;          /* Высота */
+        z-index: 1000;         /* Чтобы был поверх */
+    }
         /* Базовый сброс стилей для мобильных */
         * {
             margin: 0;
@@ -68,6 +76,20 @@
     </style>
 </head>
 <body>
+    <div class="player-container">              <!-- ← Контейнер плеера -->
+    <div data-type="newStreamPlayer"        <!-- ← Сам плеер -->
+        data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
+        data-theme="light"
+        data-color="e81e4d"
+        data-channelId=""
+        data-rendered="false"
+        class="cstrEmbed">
+        <a href="https://www.caster.fm">Shoutcast Hosting</a>
+        <a href="https://www.caster.fm">Stream Hosting</a>
+        <a href="https://www.caster.fm">Radio Server Hosting</a>
+    </div>
+    <script src="//cdn.cloud.caster.fm//widgets/embed.js"></script>  <!-- ← Скрипт -->
+    </div>
     <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" style="position: absolute; left: 0px; top: 0; width: 100%; height: auto;">
     <div class="mobile-container">
         <!-- Пустой верхний блок (можно заменить на header) -->
