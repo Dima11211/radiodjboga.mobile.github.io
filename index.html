@@ -43,31 +43,7 @@
         }
 
         
-        /* Создаем контейнер-рамку */
-        .player-wrapper {
-            width: 300px;    /* Ширина вашего плеера */
-            height: 60px;   /* Высота только нижней части (подберите под себя) */
-            overflow: hidden; /* Все, что не влезло — скрывается */
-            position: relative;
-            border: 1px solid #ccc; /* Опционально: рамка */
-        }
 
-        /* Сдвигаем сам плеер внутри рамки вверх */
-        .player-wrapper iframe, .player-wrapper div {
-            position: absolute;
-            top: -240px !important; /* Сдвиг вверх: подберите число, пока не останется только кнопка */
-            left: 0;
-        }
-
-        /* Адаптация для мобильных */
-        @media (max-width: 768px) {
-            .player-wrapper {
-                width: 100%;
-                position: fixed;
-                bottom: 0;
-                z-index: 9999;
-            }
-        }
 
         }
         /* Только плеер (без фона) */
