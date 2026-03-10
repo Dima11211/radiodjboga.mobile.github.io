@@ -42,25 +42,33 @@
             margin: 20px auto;
         }
 
-        /* Скрываем верхнюю панель плеера */
-        .caster-player-top, .player-header, #player-top {
-            display: none !important;
+        
+        /* Создаем контейнер-рамку */
+        .player-wrapper {
+            width: 300px;    /* Ширина вашего плеера */
+            height: 60px;   /* Высота только нижней части (подберите под себя) */
+            overflow: hidden; /* Все, что не влезло — скрывается */
+            position: relative;
+            border: 1px solid #ccc; /* Опционально: рамка */
         }
 
-        /* Оставляем только нижнюю часть с кнопкой Play */
-        .caster-player-bottom, .player-controls {
-            display: block !important;
-            height: auto !important;
+        /* Сдвигаем сам плеер внутри рамки вверх */
+        .player-wrapper iframe, .player-wrapper div {
+            position: absolute;
+            top: -240px !important; /* Сдвиг вверх: подберите число, пока не останется только кнопка */
+            left: 0;
         }
 
-        /* Адаптация для мобильных устройств */
+        /* Адаптация для мобильных */
         @media (max-width: 768px) {
-            .caster-player-container {
-                width: 100% !important;
+            .player-wrapper {
+                width: 100%;
                 position: fixed;
                 bottom: 0;
-                left: 0;
+                z-index: 9999;
             }
+        }
+
         }
         /* Только плеер (без фона) */
         .player-container {
@@ -91,8 +99,9 @@
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- ТОЛЬКО плеер -->
-        <div class="player-container">
+
+        <!-- Оберните ваш код плеера в этот div -->
+        <div class="player-wrapper">
             <div data-type="newStreamPlayer"
                  data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
                  data-theme="light"
