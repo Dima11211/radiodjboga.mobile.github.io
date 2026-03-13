@@ -28,36 +28,63 @@
             flex: 1;
         }
 
-        /* Логотип — фиксированная позиция относительно верха */
+        /* Логотип — всегда на одном уровне от верха */
         .logo-image {
             width: 100%;
             max-width: 330px;
             height: auto;
             display: block;
-            margin: 5vh auto 0; /* 5% от высоты экрана отступ сверху */
+            margin: 5vh auto 0;   /* 5% высоты экрана */
             position: relative;
             z-index: 10;
         }
 
-        /* Контейнер для плеера — привязан к позиции логотипа */
+        /* Плеер — поднимаем ровно на столько, чтобы наложить */
         .player-wrapper {
             position: relative;
             z-index: 5;
             width: 100%;
-            margin-top: -12vh; /* Отрицательный отступ в % от высоты экрана */
-            transform: translateY(-100px); /* Поднимает ещё на 100px */
+            margin-top: -10vh;     /* Подъём пропорционально экрану */
+            transform: translateY(-20px); /* Точная доводка пикселями */
         }
 
-        /* Чтобы плеер не уезжал слишком низко на маленьких экранах */
-        @media (max-height: 700px) {
+        /* 🔧 Масштабирование самого плеера под размер экрана */
+        .cstrEmbed {
+            display: block;
+            transform-origin: top center;
+            transform: scale(1); /* По умолчанию 100% */
+        }
+
+        /* Маленькие экраны (iPhone SE, 320–375px) — чуть уменьшаем */
+        @media (max-width: 375px) and (max-height: 670px) {
             .player-wrapper {
-                margin-top: -10vh;
+                margin-top: -9vh;
+                transform: translateY(-15px);
+            }
+            .cstrEmbed {
+                transform: scale(0.92); /* Уменьшаем сам плеер */
             }
         }
 
-        @media (max-height: 600px) {
+        /* Средние экраны (обычные телефоны) */
+        @media (min-width: 376px) and (max-width: 430px) and (min-height: 700px) {
             .player-wrapper {
-                margin-top: -8vh;
+                margin-top: -10vh;
+                transform: translateY(-20px);
+            }
+            .cstrEmbed {
+                transform: scale(1);
+            }
+        }
+
+        /* Большие экраны (например, планшеты или крупные телефоны) */
+        @media (min-width: 431px) and (min-height: 800px) {
+            .player-wrapper {
+                margin-top: -11vh;
+                transform: translateY(-25px);
+            }
+            .cstrEmbed {
+                transform: scale(1.05); /* Чуть увеличиваем плеер */
             }
         }
 
@@ -68,7 +95,7 @@
             background: transparent;
         }
 
-        /* Скрываем лишние элементы плеера, если возможно */
+        /* Скрываем лишнее */
         .player-poster, .poster_container, #albumart, .cover-art-wrapper {
             display: none !important;
         }
@@ -81,12 +108,10 @@
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Логотип -->
         <img src="img/20260225_2221_image.png" 
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- Плеер -->
         <div class="player-wrapper">
             <div data-type="newStreamPlayer"
                  data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
@@ -101,19 +126,9 @@
             </div>
         </div>
 
-        <main class="content">
-            <!-- Здесь будет твой контент -->
-        </main>
+        <main class="content"></main>
     </div>
 
     <script src="https://cdn.cloud.caster.fm/widgets/embed.js"></script>
-    
-    <script>
-        // Дополнительная корректировка после загрузки плеера
-        window.addEventListener('load', function() {
-            // Если нужно точно подогнать позицию после рендера
-            console.log('Плеер загружен');
-        });
-    </script>
 </body>
 </html>
