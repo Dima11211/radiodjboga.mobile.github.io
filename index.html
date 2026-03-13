@@ -24,7 +24,7 @@
             position: relative;
         }
 
-        /* Логотип */
+        /* Логотип - поднят на 35px вверх */
         .logo-image {
             width: 100%;
             max-width: 330px;
@@ -33,14 +33,14 @@
             margin: 0 auto 10px;
             position: relative;
             z-index: 10;
-            transform: translateY(0);
+            transform: translateY(-35px); /* Подняли на 35px */
         }
 
-        /* Контейнер для плеера — наложение под логотип */
+        /* Контейнер для плеера - опущен на 120px вниз */
         .player-wrapper {
             position: relative;
             z-index: 5;
-            margin-top: -230px; /* Поднимаем плеер под логотип */
+            margin-top: 120px; /* Опустили на 120px вниз (было -230px) */
         }
 
         /* Плеер без фона */
@@ -62,12 +62,12 @@
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Логотип (виден сверху) -->
+        <!-- Логотип (поднят на 35px) -->
         <img src="img/20260225_2221_image.png" 
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- Плеер поднимается вверх под логотип -->
+        <!-- Плеер (опущен на 120px) -->
         <div class="player-wrapper">
             <div data-type="newStreamPlayer"
                  data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
