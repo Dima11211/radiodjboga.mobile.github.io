@@ -28,63 +28,42 @@
             flex: 1;
         }
 
-        /* Логотип — всегда на одном уровне от верха */
+        /* Логотип — фиксированный отступ сверху */
         .logo-image {
             width: 100%;
             max-width: 330px;
             height: auto;
             display: block;
-            margin: 5vh auto 0;   /* 5% высоты экрана */
+            margin: 20px auto 0;
             position: relative;
             z-index: 10;
         }
 
-        /* Плеер — поднимаем ровно на столько, чтобы наложить */
+        /* === Плеер — точная настройка под каждый экран === */
         .player-wrapper {
             position: relative;
             z-index: 5;
             width: 100%;
-            margin-top: -10vh;     /* Подъём пропорционально экрану */
-            transform: translateY(-20px); /* Точная доводка пикселями */
         }
 
-        /* 🔧 Масштабирование самого плеера под размер экрана */
-        .cstrEmbed {
-            display: block;
-            transform-origin: top center;
-            transform: scale(1); /* По умолчанию 100% */
-        }
-
-        /* Маленькие экраны (iPhone SE, 320–375px) — чуть уменьшаем */
-        @media (max-width: 375px) and (max-height: 670px) {
+        /* БАЗА: iPhone SE и подобные маленькие (высота ~670px) */
+        @media (max-height: 700px) {
             .player-wrapper {
-                margin-top: -9vh;
-                transform: translateY(-15px);
-            }
-            .cstrEmbed {
-                transform: scale(0.92); /* Уменьшаем сам плеер */
+                margin-top: -130px;  /* Поднято ещё на 10px от предыдущего */
             }
         }
 
-        /* Средние экраны (обычные телефоны) */
-        @media (min-width: 376px) and (max-width: 430px) and (min-height: 700px) {
+        /* Samsung A35, средние телефоны (высота ~800–900px) */
+        @media (min-height: 701px) and (max-height: 950px) {
             .player-wrapper {
-                margin-top: -10vh;
-                transform: translateY(-20px);
-            }
-            .cstrEmbed {
-                transform: scale(1);
+                margin-top: -160px;  /* Поднято ещё на 10px */
             }
         }
 
-        /* Большие экраны (например, планшеты или крупные телефоны) */
-        @media (min-width: 431px) and (min-height: 800px) {
+        /* Большие телефоны/планшеты */
+        @media (min-height: 951px) {
             .player-wrapper {
-                margin-top: -11vh;
-                transform: translateY(-25px);
-            }
-            .cstrEmbed {
-                transform: scale(1.05); /* Чуть увеличиваем плеер */
+                margin-top: -190px;  /* Поднято ещё на 10px */
             }
         }
 
@@ -102,7 +81,7 @@
 
         .content {
             width: 100%;
-            margin-top: 2vh;
+            margin-top: 20px;
         }
     </style>
 </head>
