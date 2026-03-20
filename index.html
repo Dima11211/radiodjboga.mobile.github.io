@@ -38,7 +38,7 @@
             position: relative;
         }
 
-        /* Логотип - поднят на 35px вверх */
+
         .logo-image {
             width: 100%;
             max-width: 330px;
@@ -47,24 +47,21 @@
             margin: 0 auto 10px;
             position: relative;
             z-index: 10;
-            transform: translateY(-5px); /* Подняли на 35px */
+            transform: translateY(-5px);
         }
 
-        /* Контейнер для плеера - опущен на 120px вниз */
         .player-wrapper {
             position: relative;
             z-index: 5;
             margin-top: 0px; /* Опустили на 120px вниз (было -230px) */
         }
 
-        /* Плеер без фона */
         .cstrEmbed iframe {
             width: 100% !important;
             border: none !important;
             background: transparent;
         }
 
-        /* Скрываем лишние элементы плеера, если возможно */
         .player-poster, .poster_container, #albumart, .cover-art-wrapper {
             display: none !important;
         }
