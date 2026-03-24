@@ -2,19 +2,15 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мобильная версия</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>RADIO DJ BOGA | Интернет Радио</title>
     
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-L3147Z3JSN"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
-
-        function gtag() {
-            dataLayer.push(arguments);
-        }
+        function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
-
         gtag('config', 'G-L3147Z3JSN');
     </script>
     
@@ -27,77 +23,660 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #ffffff;
+            background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f5 100%);
+            min-height: 100vh;
         }
 
         .mobile-container {
             width: 100%;
             max-width: 480px;
             margin: 0 auto;
-            padding: 16px;
+            padding: 20px 16px 40px;
             position: relative;
         }
-
 
         .logo-image {
             width: 100%;
             max-width: 330px;
             height: auto;
             display: block;
-            margin: 0 auto 10px;
+            margin: 0 auto 15px;
             position: relative;
             z-index: 10;
-            transform: translateY(-5px);
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08));
         }
 
-        .player-wrapper {
+        /* ========== СВОЙ ПЛЕЕР С ЭКВАЛАЙЗЕРОМ ========== */
+        .custom-player {
+            background: #03fff7;
+            border-radius: 28px;
+            padding: 20px 16px;
+            margin: 0 0 20px 0;
+            box-shadow: 0 12px 28px rgba(3, 255, 247, 0.3), 0 0 0 1px rgba(3, 255, 247, 0.5);
             position: relative;
             z-index: 5;
-            margin-top: -100px; /* Опустили на 120px вниз (было -230px) */
         }
 
-        .cstrEmbed iframe {
-            width: 100% !important;
-            border: none !important;
-            background: transparent;
+        /* Визуальный эквалайзер */
+        .visualizer-container {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            padding: 12px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
         }
 
-        .player-poster, .poster_container, #albumart, .cover-art-wrapper {
-            display: none !important;
+        .visualizer-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 0 4px;
+        }
+
+        .visualizer-header span {
+            color: #ffffff;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        canvas {
+            width: 100%;
+            height: 140px;
+            display: block;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Кнопки управления - ОРАНЖЕВЫЕ */
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0 16px;
+        }
+
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            width: 52px;
+            height: 52px;
+            border-radius: 60px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #ff8c00;
+            font-size: 1.5rem;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .ctrl-btn:active {
+            transform: scale(0.94);
+            background: #fff;
+            color: #ff6b00;
+        }
+
+        .play-btn {
+            background: linear-gradient(135deg, #ffffff, #fff5e6);
+            width: 68px;
+            height: 68px;
+            font-size: 1.9rem;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            border: none;
+            color: #ff8c00;
+        }
+
+        .play-btn:active {
+            transform: scale(0.94);
+            background: #fff;
+        }
+
+        /* Статус и громкость */
+        .status-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px 16px;
+            border-radius: 60px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff8c00;
+            transition: all 0.2s;
+        }
+
+        .status-dot.connected {
+            background: #ff8c00;
+            box-shadow: 0 0 8px #ff8c00;
+            animation: pulseOrange 1.2s infinite;
+        }
+
+        .status-dot.buffering {
+            background: #ffaa33;
+            animation: pulse 1s infinite;
+        }
+
+        .status-dot.error {
+            background: #ff6b00;
+            box-shadow: 0 0 8px #ff6b00;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes pulseOrange {
+            0%, 100% { opacity: 1; transform: scale(1);}
+            50% { opacity: 0.7; transform: scale(1.2);}
+        }
+
+        .status-text {
+            font-size: 0.75rem;
+            color: #ffffff;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .volume-icon {
+            color: #ffffff;
+            font-size: 0.9rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        /* ОРАНЖЕВЫЙ ползунок громкости */
+        .volume-slider {
+            width: 100px;
+            height: 4px;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #ff8c00;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 6px #ff8c00;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #ffaa33;
+        }
+
+        .stream-badge {
+            font-size: 0.65rem;
+            color: #ffffff;
+            text-align: center;
+            margin-top: 12px;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .content {
-            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Адаптация под мобильные */
+        @media (max-width: 480px) {
+            .mobile-container {
+                padding: 16px 12px 30px;
+            }
+            
+            .custom-player {
+                padding: 16px 12px;
+            }
+            
+            canvas {
+                height: 120px;
+            }
+            
+            .ctrl-btn {
+                width: 48px;
+                height: 48px;
+                font-size: 1.3rem;
+            }
+            
+            .play-btn {
+                width: 62px;
+                height: 62px;
+                font-size: 1.7rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Логотип (поднят на 35px) -->
+        <!-- Логотип -->
         <img src="img/20260225_2221_image.png" 
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- Плеер (опущен на 120px) -->
-        <div class="player-wrapper">
-            <div data-type="newStreamPlayer"
-                 data-publicToken="7cb75f5e-9e0a-4716-b67f-7e4940ba6987"
-                 data-theme="light"
-                 data-color="e81e4d"
-                 data-channelId=""
-                 data-rendered="false"
-                 class="cstrEmbed">
-                <a href="https://www.caster.fm">Shoutcast Hosting</a>
-                <a href="https://www.caster.fm">Stream Hosting</a>
-                <a href="https://www.caster.fm">Radio Server Hosting</a>
+        <!-- Собственный плеер с визуальным эквалайзером -->
+        <div class="custom-player">
+            <!-- Визуальный эквалайзер (анимированные полосы) -->
+            <div class="visualizer-container">
+                <div class="visualizer-header">
+                    <span>🎚️ ВИЗУАЛЬНЫЙ ЭКВАЛАЙЗЕР</span>
+                    <span>🎛️ LIVE SPECTRUM</span>
+                </div>
+                <canvas id="visualizerCanvas" width="800" height="140"></canvas>
             </div>
+
+            <!-- Кнопки управления -->
+            <div class="controls">
+                <button class="ctrl-btn" id="stopBtn" title="Стоп">⏹</button>
+                <button class="ctrl-btn play-btn" id="playPauseBtn">▶</button>
+                <button class="ctrl-btn" id="reloadBtn" title="Обновить">🔄</button>
+            </div>
+
+            <!-- Статус и громкость -->
+            <div class="status-area">
+                <div class="connection-status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span class="status-text" id="statusText">Подключение...</span>
+                </div>
+                <div class="volume-control">
+                    <span class="volume-icon">🔊</span>
+                    <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.01" value="0.8">
+                </div>
+            </div>
+            <div class="stream-badge" id="streamBadge">📡 RADIO DJ BOGA | 24/7</div>
         </div>
 
         <main class="content">
-            <!-- Здесь будет твой контент -->
+            <!-- Здесь будет ваш дополнительный контент -->
         </main>
     </div>
 
-    <script src="https://cdn.cloud.caster.fm/widgets/embed.js"></script>
+    <script>
+        // ============================================================
+        // НАСТРОЙКИ ВАШЕГО РАДИО ВЕЩАНИЯ
+        // ============================================================
+        // ВСТАВЬТЕ СЮДА URL ВАШЕГО ПОТОКА (IP:PORT или домен)
+        const RADIO_STREAM_URL = "http://your-ip:8000/stream";  // ← ИЗМЕНИТЕ НА ВАШ URL!
+        
+        // Примеры форматов:
+        // const RADIO_STREAM_URL = "http://192.168.1.100:8000/radio.mp3";
+        // const RADIO_STREAM_URL = "https://radio.example.com:8443/live";
+        // const RADIO_STREAM_URL = "http://91.121.65.189:8000/stream";
+        
+        // Название радиостанции (отображается внизу)
+        const STATION_NAME = "RADIO DJ BOGA | 24/7";
+        
+        // ============================================================
+        // КОД ПЛЕЕРА (НЕ МЕНЯТЬ)
+        // ============================================================
+        
+        // DOM элементы
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const reloadBtn = document.getElementById('reloadBtn');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const statusDot = document.getElementById('statusDot');
+        const statusTextSpan = document.getElementById('statusText');
+        const streamBadgeSpan = document.getElementById('streamBadge');
+        
+        // Canvas для визуализации
+        const canvas = document.getElementById('visualizerCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Устанавливаем название станции
+        if (streamBadgeSpan) streamBadgeSpan.textContent = `📡 ${STATION_NAME}`;
+        
+        // Web Audio переменные
+        let audioElement = null;
+        let audioContext = null;
+        let sourceNode = null;
+        let analyserNode = null;
+        let gainNode = null;
+        let animationId = null;
+        let isPlaying = false;
+        let currentStreamUrl = RADIO_STREAM_URL;
+        let reconnectAttempts = 0;
+        let isManualReconnect = false;
+        
+        // Настройки визуализации
+        let dataArray = null;
+        let canvasWidth = 800;
+        let canvasHeight = 140;
+        
+        // Инициализация canvas размера
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const width = container.clientWidth - 20;
+            canvas.width = width;
+            canvas.height = 140;
+            canvasWidth = canvas.width;
+            canvasHeight = canvas.height;
+            if (analyserNode) {
+                const bufferLength = analyserNode.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+            }
+        }
+        
+        window.addEventListener('resize', () => {
+            setTimeout(resizeCanvas, 100);
+        });
+        
+        // Создание Web Audio цепочки
+        async function initWebAudioForRadio() {
+            if (!audioElement) return false;
+            
+            if (audioContext && audioContext.state !== 'closed') {
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                try {
+                    await audioContext.close();
+                } catch(e) {}
+            }
+            
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                sourceNode = audioContext.createMediaElementSource(audioElement);
+                
+                analyserNode = audioContext.createAnalyser();
+                analyserNode.fftSize = 128;
+                analyserNode.smoothingTimeConstant = 0.7;
+                
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = parseFloat(volumeSlider.value);
+                
+                sourceNode.connect(analyserNode);
+                analyserNode.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                const bufferLength = analyserNode.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                
+                startVisualization();
+                return true;
+            } catch (error) {
+                console.error("Web Audio ошибка:", error);
+                return false;
+            }
+        }
+        
+        // Анимация визуализатора - ОРАНЖЕВЫЙ градиент
+        function startVisualization() {
+            if (animationId) cancelAnimationFrame(animationId);
+            
+            function draw() {
+                if (!analyserNode || !ctx) {
+                    animationId = requestAnimationFrame(draw);
+                    return;
+                }
+                
+                if (dataArray) {
+                    analyserNode.getByteFrequencyData(dataArray);
+                } else {
+                    animationId = requestAnimationFrame(draw);
+                    return;
+                }
+                
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                
+                const barCount = analyserNode.frequencyBinCount;
+                // ОРАНЖЕВЫЙ градиент для эквалайзера
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+                gradient.addColorStop(0, '#ffaa33');
+                gradient.addColorStop(0.5, '#ff8c00');
+                gradient.addColorStop(1, '#ff6b00');
+                
+                for (let i = 0; i < barCount; i++) {
+                    let value = dataArray[i] || 0;
+                    let percent = value / 255;
+                    let barHeight = Math.max(3, percent * canvasHeight * 0.85);
+                    const x = i * (canvasWidth / barCount);
+                    const w = (canvasWidth / barCount) * 0.8;
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#ff8c00';
+                    ctx.fillRect(x + 2, canvasHeight - barHeight, w - 1, barHeight);
+                }
+                ctx.shadowBlur = 0;
+                
+                animationId = requestAnimationFrame(draw);
+            }
+            
+            draw();
+        }
+        
+        // Загрузка радио потока
+        async function loadRadioStream(url, showStatus = true) {
+            if (!url || url.trim() === '') {
+                updateStatus('error', 'URL не указан');
+                return false;
+            }
+            
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.src = '';
+            }
+            
+            if (showStatus) {
+                updateStatus('buffering', 'Подключение...');
+            }
+            
+            audioElement = new Audio();
+            audioElement.crossOrigin = 'anonymous';
+            audioElement.src = url;
+            audioElement.preload = 'auto';
+            
+            currentStreamUrl = url;
+            
+            audioElement.addEventListener('canplay', async () => {
+                updateStatus('connected', 'Готов к работе');
+                await initWebAudioForRadio();
+                if (isPlaying) {
+                    await audioElement.play().catch(e => console.warn);
+                }
+            });
+            
+            audioElement.addEventListener('playing', () => {
+                updateStatus('connected', 'В эфире');
+                isPlaying = true;
+                playPauseBtn.innerHTML = '⏸';
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                reconnectAttempts = 0;
+            });
+            
+            audioElement.addEventListener('pause', () => {
+                if (!audioElement.src) return;
+                if (!audioElement.ended) {
+                    isPlaying = false;
+                    playPauseBtn.innerHTML = '▶';
+                }
+            });
+            
+            audioElement.addEventListener('waiting', () => {
+                updateStatus('buffering', 'Буферизация...');
+            });
+            
+            audioElement.addEventListener('error', () => {
+                updateStatus('error', 'Ошибка соединения');
+                isPlaying = false;
+                playPauseBtn.innerHTML = '▶';
+                if (!isManualReconnect && reconnectAttempts < 2) {
+                    reconnectAttempts++;
+                    setTimeout(() => {
+                        if (!isPlaying) {
+                            loadRadioStream(currentStreamUrl, true);
+                        }
+                    }, 3000);
+                }
+            });
+            
+            try {
+                await audioElement.play();
+                isPlaying = true;
+                playPauseBtn.innerHTML = '⏸';
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+            } catch (err) {
+                console.log("Автоплей заблокирован:", err);
+                updateStatus('error', 'Нажмите ▶ для старта');
+                isPlaying = false;
+                playPauseBtn.innerHTML = '▶';
+            }
+            
+            return true;
+        }
+        
+        function updateStatus(state, message) {
+            statusTextSpan.textContent = message;
+            statusDot.className = 'status-dot';
+            if (state === 'connected') {
+                statusDot.classList.add('connected');
+            } else if (state === 'buffering') {
+                statusDot.classList.add('buffering');
+            } else if (state === 'error') {
+                statusDot.classList.add('error');
+                statusDot.style.background = '#ff8c00';
+                statusDot.style.boxShadow = '0 0 8px #ff8c00';
+            } else {
+                statusDot.style.background = '#ff8c00';
+            }
+        }
+        
+        async function togglePlayPause() {
+            if (!audioElement || !currentStreamUrl) {
+                await loadRadioStream(RADIO_STREAM_URL);
+                return;
+            }
+            
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+            
+            if (audioElement.paused) {
+                await audioElement.play().catch(e => {
+                    updateStatus('error', 'Ошибка воспроизведения');
+                });
+                isPlaying = true;
+                playPauseBtn.innerHTML = '⏸';
+            } else {
+                audioElement.pause();
+                isPlaying = false;
+                playPauseBtn.innerHTML = '▶';
+            }
+        }
+        
+        function stopRadio() {
+            if (audioElement) {
+                audioElement.pause();
+                isPlaying = false;
+                playPauseBtn.innerHTML = '▶';
+                updateStatus('error', 'Остановлено');
+                statusDot.style.background = '#ff8c00';
+            }
+        }
+        
+        async function reloadStream() {
+            if (!currentStreamUrl) {
+                await loadRadioStream(RADIO_STREAM_URL);
+                return;
+            }
+            isManualReconnect = true;
+            updateStatus('buffering', 'Переподключение...');
+            await loadRadioStream(currentStreamUrl, true);
+            setTimeout(() => { isManualReconnect = false; }, 1000);
+        }
+        
+        function updateVolume() {
+            const vol = parseFloat(volumeSlider.value);
+            if (gainNode) gainNode.gain.value = vol;
+            if (audioElement) audioElement.volume = vol;
+        }
+        
+        // Демо-визуализация при отсутствии потока (ОРАНЖЕВАЯ)
+        function demoVisualization() {
+            if (!analyserNode && (!audioElement || !audioElement.src)) {
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                const barCount = 64;
+                const time = Date.now() * 0.005;
+                for (let i = 0; i < barCount; i++) {
+                    let fake = 20 + Math.sin(time + i * 0.2) * 15;
+                    fake = Math.min(canvasHeight * 0.5, Math.max(5, fake));
+                    const x = i * (canvasWidth / barCount);
+                    const w = (canvasWidth / barCount) * 0.75;
+                    ctx.fillStyle = `rgba(255, 140, 0, ${0.6 + Math.sin(time + i) * 0.2})`;
+                    ctx.fillRect(x + 2, canvasHeight - fake, w, fake);
+                }
+                requestAnimationFrame(() => demoVisualization());
+            }
+        }
+        
+        // Инициализация
+        function init() {
+            resizeCanvas();
+            
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            stopBtn.addEventListener('click', stopRadio);
+            reloadBtn.addEventListener('click', reloadStream);
+            volumeSlider.addEventListener('input', updateVolume);
+            
+            document.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (audioContext && audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
+                });
+            });
+            
+            setTimeout(() => {
+                loadRadioStream(RADIO_STREAM_URL);
+            }, 500);
+            
+            demoVisualization();
+        }
+        
+        init();
+        
+        window.addEventListener('beforeunload', () => {
+            if (audioElement) audioElement.pause();
+            if (audioContext) audioContext.close();
+        });
+        
+        console.log('🎵 RADIO DJ BOGA плеер запущен | Оранжевая тема');
+    </script>
 </body>
 </html>
