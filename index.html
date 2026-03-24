@@ -38,27 +38,29 @@
             position: relative;
         }
 
+        /* Логотип - большой размер */
         .logo-image {
             width: 100%;
-            max-width: 330px;
+            max-width: 100%;
             height: auto;
             display: block;
-            margin: 0 auto 20px;
+            margin: 0 auto 0.5cm; /* отступ 0.5см снизу */
             position: relative;
             z-index: 10;
             filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08));
         }
 
-        /* ========== ПЛЕЕР - без лишних отступов ========== */
+        /* ========== ПЛЕЕР - без обводки (убрана ширина/рамка) ========== */
         .custom-player {
             background: #03fff7;
             border-radius: 28px;
             padding: 0;
-            margin: 0 0 20px 0;
-            box-shadow: 0 12px 28px rgba(3, 255, 247, 0.3), 0 0 0 1px rgba(3, 255, 247, 0.5);
+            margin: 0;
+            box-shadow: none; /* убрали тень */
             position: relative;
             z-index: 5;
             overflow: hidden;
+            border: none; /* убрали рамку */
         }
 
         /* Контейнер для кнопки - вплотную к эквалайзеру */
@@ -70,7 +72,7 @@
             background: #03fff7;
         }
 
-        /* Прямоугольная бордовая кнопка play/stop - чуть меньше */
+        /* Прямоугольная бордовая кнопка play/stop */
         .play-stop-btn {
             background: linear-gradient(135deg, #8b0000, #5a0000);
             border: none;
@@ -99,7 +101,7 @@
         /* Визуальный эквалайзер - без отступа сверху */
         .visualizer-container {
             background: rgba(0, 0, 0, 0.15);
-            border-radius: 0 0 20px 20px;
+            border-radius: 0 0 28px 28px;
             padding: 12px;
             backdrop-filter: blur(4px);
             border-top: 1px solid rgba(255, 255, 255, 0.4);
@@ -117,7 +119,7 @@
         }
 
         .content {
-            margin-top: 10px;
+            margin-top: 20px;
         }
 
         /* Адаптация под мобильные */
@@ -135,24 +137,28 @@
             canvas {
                 height: 140px;
             }
+            
+            .logo-image {
+                margin-bottom: 0.5cm; /* 0.5см отступ */
+            }
         }
     </style>
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Логотип -->
+        <!-- Логотип - большой размер -->
         <img src="img/20260225_2221_image.png" 
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- Плеер с эквалайзером и кнопкой play/stop - кнопка вплотную к эквалайзеру -->
+        <!-- Плеер вплотную под логотипом (отступ 0.5см) без обводки -->
         <div class="custom-player">
             <!-- Кнопка play/stop прижата к эквалайзеру -->
             <div class="button-container">
                 <button class="play-stop-btn" id="playStopBtn">▶ PLAY</button>
             </div>
 
-            <!-- Окно с эквалайзером (без отступа сверху) -->
+            <!-- Окно с эквалайзером -->
             <div class="visualizer-container">
                 <canvas id="visualizerCanvas" width="800" height="160"></canvas>
             </div>
@@ -428,7 +434,7 @@
             if (audioContext) audioContext.close();
         });
         
-        console.log('🎵 RADIO DJ BOGA плеер запущен | Кнопка вплотную к эквалайзеру');
+        console.log('🎵 RADIO DJ BOGA плеер запущен | Логотип большой, плеер без обводки');
     </script>
 </body>
 </html>
