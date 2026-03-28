@@ -31,40 +31,45 @@
             width: 100%;
             max-width: 480px;
             margin: 0 auto;
-            padding: 5px 20px 20px 20px; /* 5мм сверху = 5px, остальное по бокам */
+            padding: 20px 20px 20px 20px;
             position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100vh;
         }
 
-        /* Логотип - большой размер */
+        /* Логотип */
         .logo-image {
-            width: 99%;
+            width: 100%;
             max-width: 100%;
             height: auto;
             display: block;
-            margin: 10; /* убран отступ снизу */
+            margin: 30px 0 0 0;
             position: relative;
             z-index: 10;
             filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08));
         }
 
-        /* ========== ПЛЕЕР - без обводки ========== */
+        /* ========== ПРЯМОУГОЛЬНЫЙ ПЛЕЕР С ОСТРЫМИ УГЛАМИ ========== */
         .custom-player {
             background: #03fff7;
-            border-radius: 28px;
+            border-radius: 0; /* острые углы, без скругления */
             padding: 0;
-            margin: 0;
-            box-shadow: none;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
             position: relative;
             z-index: 5;
             overflow: hidden;
             border: none;
         }
 
-        /* Контейнер для кнопки - вплотную к эквалайзеру */
+        /* Контейнер для кнопки */
         .button-container {
             display: flex;
             justify-content: center;
-            padding: 0;
+            padding: 20px 0 10px 0;
             margin: 0;
             background: #03fff7;
         }
@@ -73,87 +78,102 @@
         .play-stop-btn {
             background: linear-gradient(135deg, #8b0000, #5a0000);
             border: none;
-            width: 160px;
-            padding: 10px 0;
-            border-radius: 40px;
+            width: 200px;
+            padding: 14px 0;
+            border-radius: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             color: white;
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(139, 0, 0, 0.4);
-            gap: 8px;
+            box-shadow: 0 6px 16px rgba(139, 0, 0, 0.4);
+            gap: 10px;
             letter-spacing: 1px;
             margin: 0;
         }
 
         .play-stop-btn:active {
             transform: scale(0.97);
-            box-shadow: 0 2px 8px rgba(139, 0, 0, 0.5);
+            box-shadow: 0 3px 10px rgba(139, 0, 0, 0.5);
         }
 
-        /* Визуальный эквалайзер - без отступа сверху */
+        /* Визуальный эквалайзер */
         .visualizer-container {
             background: rgba(0, 0, 0, 0.15);
-            border-radius: 0 0 28px 28px;
-            padding: 12px;
+            border-radius: 0; /* острые углы */
+            padding: 20px 16px 24px 16px;
             backdrop-filter: blur(4px);
-            border-top: 1px solid rgba(255, 255, 255, 0.4);
-            border-bottom: none;
-            border-left: none;
-            border-right: none;
+            border-top: 2px solid rgba(255, 255, 255, 0.5);
         }
 
         canvas {
             width: 100%;
-            height: 160px;
+            height: 200px;
             display: block;
-            border-radius: 12px;
+            border-radius: 0; /* острые углы у canvas */
             background: rgba(0, 0, 0, 0.2);
         }
 
         .content {
-            margin-top: 20px;
+            margin-top: 10px;
         }
 
         /* Адаптация под мобильные */
         @media (max-width: 480px) {
             .mobile-container {
-                padding: 5px 16px 16px 16px; /* 5мм сверху, 16px по бокам и снизу */
+                padding: 16px;
+                min-height: auto;
+            }
+            
+            .logo-image {
+                margin-top: 20px;
+            }
+            
+            .custom-player {
+                margin-top: 35px;
+                border-radius: 0; /* острые углы */
             }
             
             .play-stop-btn {
-                width: 140px;
-                padding: 8px 0;
-                font-size: 1.2rem;
+                width: 170px;
+                padding: 12px 0;
+                font-size: 1.3rem;
+            }
+            
+            .button-container {
+                padding: 16px 0 8px 0;
+            }
+            
+            .visualizer-container {
+                padding: 16px 12px 20px 12px;
             }
             
             canvas {
-                height: 140px;
+                height: 170px;
             }
         }
     </style>
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Логотип - большой размер -->
+        <!-- Логотип -->
         <img src="img/20260225_2221_image.png" 
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- Плеер вплотную под логотипом без обводки -->
+        <!-- Прямоугольный плеер с острыми углами -->
         <div class="custom-player">
-            <!-- Кнопка play/stop прижата к эквалайзеру -->
+            <!-- Кнопка play/stop -->
             <div class="button-container">
                 <button class="play-stop-btn" id="playStopBtn">▶ PLAY</button>
             </div>
 
             <!-- Окно с эквалайзером -->
             <div class="visualizer-container">
-                <canvas id="visualizerCanvas" width="800" height="160"></canvas>
+                <canvas id="visualizerCanvas" width="800" height="200"></canvas>
             </div>
         </div>
 
@@ -193,14 +213,14 @@
         // Настройки визуализации
         let dataArray = null;
         let canvasWidth = 800;
-        let canvasHeight = 160;
+        let canvasHeight = 200;
         
         // Инициализация canvas размера
         function resizeCanvas() {
             const container = canvas.parentElement;
-            const width = container.clientWidth - 24;
+            const width = container.clientWidth - 32;
             canvas.width = width;
-            canvas.height = 160;
+            canvas.height = 200;
             canvasWidth = canvas.width;
             canvasHeight = canvas.height;
             if (analyserNode) {
@@ -282,7 +302,7 @@
                 for (let i = 0; i < barCount; i++) {
                     let value = dataArray[i] || 0;
                     let percent = value / 255;
-                    let barHeight = Math.max(3, percent * canvasHeight * 0.85);
+                    let barHeight = Math.max(4, percent * canvasHeight * 0.85);
                     const x = i * (canvasWidth / barCount);
                     const w = (canvasWidth / barCount) * 0.8;
                     
@@ -395,8 +415,8 @@
                 const barCount = 64;
                 const time = Date.now() * 0.005;
                 for (let i = 0; i < barCount; i++) {
-                    let fake = 20 + Math.sin(time + i * 0.2) * 15;
-                    fake = Math.min(canvasHeight * 0.5, Math.max(5, fake));
+                    let fake = 25 + Math.sin(time + i * 0.2) * 18;
+                    fake = Math.min(canvasHeight * 0.5, Math.max(6, fake));
                     const x = i * (canvasWidth / barCount);
                     const w = (canvasWidth / barCount) * 0.75;
                     ctx.fillStyle = `rgba(255, 140, 0, ${0.6 + Math.sin(time + i) * 0.2})`;
@@ -427,7 +447,7 @@
             if (audioContext) audioContext.close();
         });
         
-        console.log('🎵 RADIO DJ BOGA плеер запущен | Отступ сверху 5мм');
+        console.log('🎵 RADIO DJ BOGA плеер запущен | Прямоугольный плеер с острыми углами');
     </script>
 </body>
 </html>
