@@ -35,10 +35,10 @@
             position: relative;
         }
 
-        /* Логотип - уменьшен на 2.5мм (примерно 7px при стандартном размере) */
+        /* Логотип - значительно уменьшен */
         .logo-image {
-            width: calc(100% - 7px); /* уменьшение на 7px (2.5мм примерно) */
-            max-width: calc(100% - 7px);
+            width: 75%; /* уменьшен до 75% от оригинальной ширины */
+            max-width: 75%;
             height: auto;
             display: block;
             margin: 5px auto 0 auto;
@@ -47,12 +47,12 @@
             filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08));
         }
 
-        /* ========== ПЛЕЕР - ВОЗВРАЩЕН К ПРЕЖНЕМУ РАЗМЕРУ ========== */
+        /* ========== ПЛЕЕР ========== */
         .custom-player {
             background: #03fff7;
             border-radius: 0;
             padding: 0;
-            margin-top: 15px; /* расстояние между логотипом и плеером сохранено */
+            margin-top: 15px;
             margin-bottom: 20px;
             box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
             position: relative;
@@ -124,8 +124,8 @@
             }
             
             .logo-image {
-                width: calc(100% - 7px);
-                max-width: calc(100% - 7px);
+                width: 70%;
+                max-width: 70%;
                 margin-top: 0;
             }
             
@@ -155,12 +155,12 @@
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Логотип уменьшен на 2.5мм -->
+        <!-- Логотип значительно уменьшен -->
         <img src="img/20260225_2221_image.png" 
              alt="RADIO DJ BOGA" 
              class="logo-image">
 
-        <!-- Плеер возвращен к прежнему размеру -->
+        <!-- Плеер -->
         <div class="custom-player">
             <!-- Кнопка play/stop -->
             <div class="button-container">
@@ -443,7 +443,7 @@
             if (audioContext) audioContext.close();
         });
         
-        console.log('🎵 RADIO DJ BOGA плеер запущен | Логотип уменьшен на 2.5мм, расстояние сохранено');
+        console.log('🎵 RADIO DJ BOGA плеер запущен | Логотип значительно уменьшен');
     </script>
 </body>
 </html>
