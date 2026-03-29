@@ -4,319 +4,412 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RADIO DJ BOGA | Интернет Радио</title>
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-L3147Z3JSN"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-L3147Z3JSN');
+    </script>
+    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f5 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
-        .container {
+
+        .mobile-container {
             width: 100%;
             max-width: 480px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 10px 20px 20px 20px;
+            position: relative;
         }
-        .logo {
+
+        /* Логотип */
+        .logo-image {
             width: 100%;
             max-width: 100%;
             height: auto;
             display: block;
-            margin: 0 auto 20px auto;
-            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));
+            margin: 5px 0 0 0;
+            position: relative;
+            z-index: 10;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08));
         }
-        .player {
+
+        /* ========== ПЛЕЕР ========== */
+        .custom-player {
             background: #03fff7;
-            box-shadow: 0 12px 28px rgba(3, 255, 247, 0.3);
+            border-radius: 0;
+            padding: 0;
+            margin-top: 15px;
             margin-bottom: 20px;
+            box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
+            position: relative;
+            z-index: 5;
+            overflow: hidden;
+            border: none;
         }
-        .btn-container {
+
+        /* Контейнер для кнопки - верхняя часть, уже */
+        .button-container {
             display: flex;
             justify-content: center;
-            padding: 12px 0;
+            padding: 4px 0 4px 0;
+            margin: 0;
             background: #03fff7;
-            border-bottom: 2px solid rgba(255,255,255,0.6);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.5);
         }
-        .play-btn {
+
+        /* Прямоугольная бордовая кнопка play/stop - немного уже */
+        .play-stop-btn {
             background: linear-gradient(135deg, #8b0000, #5a0000);
             border: none;
             width: 180px;
-            padding: 12px 0;
+            padding: 10px 0;
             border-radius: 50px;
-            color: white;
-            font-size: 1.4rem;
-            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: transform 0.1s;
-            box-shadow: 0 6px 16px rgba(139,0,0,0.4);
+            color: white;
+            font-size: 1.3rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 16px rgba(139, 0, 0, 0.4);
+            gap: 10px;
+            letter-spacing: 1px;
+            margin: 0;
         }
-        .play-btn:active { transform: scale(0.96); }
-        .viz-container {
-            background: rgba(0,0,0,0.15);
-            padding: 20px;
+
+        .play-stop-btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 3px 10px rgba(139, 0, 0, 0.5);
         }
+
+        /* Визуальный эквалайзер */
+        .visualizer-container {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 0;
+            padding: 20px 16px 24px 16px;
+            backdrop-filter: blur(4px);
+        }
+
         canvas {
             width: 100%;
             height: 180px;
             display: block;
-            background: rgba(0,0,0,0.2);
+            border-radius: 0;
+            background: rgba(0, 0, 0, 0.2);
         }
-        .status {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: #1a1a2e;
+
+        .content {
+            margin-top: 10px;
         }
+
+        /* Адаптация под мобильные */
         @media (max-width: 480px) {
-            .play-btn { width: 160px; padding: 10px 0; font-size: 1.2rem; }
-            canvas { height: 150px; }
+            .mobile-container {
+                padding: 8px 16px 16px 16px;
+            }
+            .logo-image {
+                margin-top: 0;
+            }
+            .custom-player {
+                margin-top: 12px;
+            }
+            .play-stop-btn {
+                width: 160px;
+                padding: 9px 0;
+                font-size: 1.2rem;
+            }
+            .button-container {
+                padding: 10px 0 8px 0;
+            }
+            .visualizer-container {
+                padding: 16px 12px 20px 12px;
+            }
+            canvas {
+                height: 150px;
+            }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo">
-    <div class="player">
-        <div class="btn-container">
-            <button class="play-btn" id="playPauseBtn">▶ PLAY</button>
+    <div class="mobile-container">
+        <!-- Логотип -->
+        <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
+
+        <!-- Плеер с кнопкой PLAY сверху -->
+        <div class="custom-player">
+            <!-- Кнопка play/stop - сверху, уже -->
+            <div class="button-container">
+                <button class="play-stop-btn" id="playStopBtn">▶ PLAY</button>
+            </div>
+            <!-- Окно с эквалайзером -->
+            <div class="visualizer-container">
+                <canvas id="visualizerCanvas" width="800" height="180"></canvas>
+            </div>
         </div>
-        <div class="viz-container">
-            <canvas id="audioCanvas" width="800" height="180"></canvas>
-        </div>
+        <div class="status-text" id="statusText" style="text-align:center; margin-top:10px; font-size:0.75rem;">Готов к воспроизведению</div>
+        <main class="content">
+            <!-- Здесь будет ваш дополнительный контент -->
+        </main>
     </div>
-    <div class="status" id="statusMsg">Готов к воспроизведению</div>
-</div>
 
-<script>
-    // ==============================================================
-    // ⚡ НАСТРОЙКИ - МЕНЯЙТЕ ТОЛЬКО ЗДЕСЬ ⚡
-    // ==============================================================
-    const STREAM_URL = "http://188.134.73.163:8000/stream";  // Ваш URL (http или https)
-    // ==============================================================
+    <script>
+        // ============================================================
+        // НАСТРОЙКИ ВАШЕГО РАДИО ВЕЩАНИЯ
+        // ============================================================
+        const RADIO_STREAM_URL = "http://188.134.73.163:8000/stream";
+        // ============================================================
 
-    // --- 1. Решение проблемы смешанного контента (Mixed Content) ---
-    // Если сайт открыт по HTTPS, а поток по HTTP - браузер заблокирует.
-    // Этот прокси-сервер безопасно передает HTTP-поток на HTTPS-страницу.
-    function getActualUrl() {
-        if (window.location.protocol === 'https:' && STREAM_URL.startsWith('http:')) {
-            // Используем публичный CORS-прокси для обхода блокировки
-            return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(STREAM_URL);
-        }
-        return STREAM_URL;
-    }
-
-    // --- DOM элементы ---
-    const playBtn = document.getElementById('playPauseBtn');
-    const canvas = document.getElementById('audioCanvas');
-    const ctx = canvas.getContext('2d');
-    const statusDiv = document.getElementById('statusMsg');
-
-    // --- Переменные плеера ---
-    let audio = null;
-    let audioCtx = null;
-    let analyser = null;
-    let source = null;
-    let animationId = null;
-    let isPlaying = false;
-
-    // --- Настройка canvas ---
-    let width = 800, height = 180;
-    function resizeCanvas() {
-        const w = canvas.parentElement.clientWidth - 40;
-        canvas.width = w;
-        canvas.height = 180;
-        width = canvas.width;
-        height = canvas.height;
-    }
-    window.addEventListener('resize', () => setTimeout(resizeCanvas, 100));
-    resizeCanvas();
-
-    // --- Обновление статуса ---
-    function setStatus(msg, isError = false) {
-        statusDiv.textContent = msg;
-        statusDiv.style.color = isError ? '#e74c3c' : '#1a1a2e';
-        console.log(msg);
-    }
-
-    // --- Визуализация (эквалайзер) ---
-    let dataArray = null;
-    function startVisualization() {
-        if (!analyser) return;
-        const bufferLength = analyser.frequencyBinCount;
-        dataArray = new Uint8Array(bufferLength);
+        // DOM элементы
+        const playStopBtn = document.getElementById('playStopBtn');
+        const statusSpan = document.getElementById('statusText');
         
-        function draw() {
-            if (!analyser || !ctx) {
+        // Canvas для визуализации
+        const canvas = document.getElementById('visualizerCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Web Audio переменные
+        let audioElement = null;
+        let audioContext = null;
+        let sourceNode = null;
+        let analyserNode = null;
+        let gainNode = null;
+        let animationId = null;
+        let isPlaying = false;
+        
+        // Настройки визуализации
+        let dataArray = null;
+        let canvasWidth = 800;
+        let canvasHeight = 180;
+        
+        function updateStatus(msg, isError = false) {
+            statusSpan.textContent = msg;
+            statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
+            console.log(msg);
+        }
+        
+        // Инициализация canvas размера
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const width = container.clientWidth - 32;
+            canvas.width = width;
+            canvas.height = 180;
+            canvasWidth = canvas.width;
+            canvasHeight = canvas.height;
+            if (analyserNode) {
+                const bufferLength = analyserNode.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+            }
+        }
+        
+        window.addEventListener('resize', () => {
+            setTimeout(resizeCanvas, 100);
+        });
+        
+        // Создание Web Audio цепочки
+        async function initWebAudioForRadio() {
+            if (!audioElement) return false;
+            
+            if (audioContext && audioContext.state !== 'closed') {
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                try {
+                    await audioContext.close();
+                } catch(e) {}
+            }
+            
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                sourceNode = audioContext.createMediaElementSource(audioElement);
+                analyserNode = audioContext.createAnalyser();
+                analyserNode.fftSize = 128;
+                analyserNode.smoothingTimeConstant = 0.7;
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = 0.8;
+                
+                sourceNode.connect(analyserNode);
+                analyserNode.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                const bufferLength = analyserNode.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                startVisualization();
+                return true;
+            } catch (error) {
+                console.error("Web Audio ошибка:", error);
+                return false;
+            }
+        }
+        
+        // Анимация визуализатора - ОРАНЖЕВЫЙ градиент
+        function startVisualization() {
+            if (animationId) cancelAnimationFrame(animationId);
+            
+            function draw() {
+                if (!analyserNode || !ctx) {
+                    animationId = requestAnimationFrame(draw);
+                    return;
+                }
+                
+                if (dataArray) {
+                    analyserNode.getByteFrequencyData(dataArray);
+                } else {
+                    animationId = requestAnimationFrame(draw);
+                    return;
+                }
+                
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                
+                const barCount = analyserNode.frequencyBinCount;
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+                gradient.addColorStop(0, '#ffaa33');
+                gradient.addColorStop(0.5, '#ff8c00');
+                gradient.addColorStop(1, '#ff6b00');
+                
+                for (let i = 0; i < barCount; i++) {
+                    let value = dataArray[i] || 0;
+                    let percent = value / 255;
+                    let barHeight = Math.max(4, percent * canvasHeight * 0.85);
+                    const x = i * (canvasWidth / barCount);
+                    const w = (canvasWidth / barCount) * 0.8;
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#ff8c00';
+                    ctx.fillRect(x + 2, canvasHeight - barHeight, w - 1, barHeight);
+                }
+                ctx.shadowBlur = 0;
+                
                 animationId = requestAnimationFrame(draw);
-                return;
-            }
-            analyser.getByteFrequencyData(dataArray);
-            ctx.clearRect(0, 0, width, height);
-            const barCount = analyser.frequencyBinCount;
-            const grad = ctx.createLinearGradient(0, 0, 0, height);
-            grad.addColorStop(0, '#ffaa33');
-            grad.addColorStop(0.5, '#ff8c00');
-            grad.addColorStop(1, '#ff6b00');
-            for (let i = 0; i < barCount; i++) {
-                let val = dataArray[i] || 0;
-                let percent = val / 255;
-                let barHeight = Math.max(4, percent * height * 0.85);
-                let x = i * (width / barCount);
-                let w = (width / barCount) * 0.8;
-                ctx.fillStyle = grad;
-                ctx.shadowBlur = 6;
-                ctx.shadowColor = '#ff8c00';
-                ctx.fillRect(x + 2, height - barHeight, w - 1, barHeight);
-            }
-            ctx.shadowBlur = 0;
-            animationId = requestAnimationFrame(draw);
-        }
-        draw();
-    }
-
-    // --- Полная остановка и очистка ---
-    async function fullStop() {
-        if (audio) {
-            audio.pause();
-            audio.src = '';
-            audio = null;
-        }
-        if (audioCtx) {
-            if (animationId) cancelAnimationFrame(animationId);
-            try { await audioCtx.close(); } catch(e) {}
-            audioCtx = null;
-            analyser = null;
-            source = null;
-        }
-        isPlaying = false;
-        playBtn.innerHTML = '▶ PLAY';
-    }
-
-    // --- Инициализация Web Audio и подключение к аудиоэлементу ---
-    async function initWebAudio(element) {
-        if (!element) return false;
-        if (audioCtx) {
-            if (animationId) cancelAnimationFrame(animationId);
-            try { await audioCtx.close(); } catch(e) {}
-            audioCtx = null;
-        }
-        try {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            source = audioCtx.createMediaElementSource(element);
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 128;
-            analyser.smoothingTimeConstant = 0.7;
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0.8;
-            source.connect(analyser);
-            analyser.connect(gain);
-            gain.connect(audioCtx.destination);
-            startVisualization();
-            return true;
-        } catch(e) {
-            console.error("WebAudio init error", e);
-            return false;
-        }
-    }
-
-    // --- Запуск воспроизведения ---
-    async function startPlayback() {
-        try {
-            setStatus('Подключение к потоку...');
-            await fullStop();
-            
-            const finalUrl = getActualUrl();
-            if (finalUrl !== STREAM_URL) {
-                setStatus('Обход смешанного контента (HTTPS→HTTP)');
             }
             
-            const newAudio = new Audio();
-            newAudio.crossOrigin = 'anonymous';
-            newAudio.src = finalUrl;
-            newAudio.preload = 'auto';
-            
-            // Ждем готовности
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Таймаут 10 секунд')), 10000);
-                newAudio.addEventListener('canplay', () => { clearTimeout(timeout); resolve(); }, { once: true });
-                newAudio.addEventListener('error', (e) => {
-                    clearTimeout(timeout);
-                    let errMsg = 'Ошибка загрузки';
-                    if (newAudio.error) {
-                        if (newAudio.error.code === 2) errMsg = 'Сервер не отвечает (поток недоступен)';
-                        else if (newAudio.error.code === 4) errMsg = 'URL не найден';
+            draw();
+        }
+        
+        // Функция play/stop
+        async function togglePlayStop() {
+            if (isPlaying) {
+                // Остановка
+                if (audioElement) {
+                    audioElement.pause();
+                }
+                isPlaying = false;
+                playStopBtn.innerHTML = '▶ PLAY';
+                updateStatus('Остановлено');
+            } else {
+                // Воспроизведение
+                try {
+                    updateStatus('Подключение к потоку...');
+                    
+                    // Очищаем предыдущее
+                    if (audioElement) {
+                        audioElement.pause();
+                        audioElement.src = '';
+                        audioElement = null;
                     }
-                    reject(new Error(errMsg));
-                }, { once: true });
-                newAudio.load();
-            });
-            
-            audio = newAudio;
-            const ok = await initWebAudio(audio);
-            if (!ok) throw new Error('Не удалось настроить аудио');
-            
-            if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
-            await audio.play();
-            isPlaying = true;
-            playBtn.innerHTML = '⏹ STOP';
-            setStatus('▶ В эфире');
-        } catch(err) {
-            console.error(err);
-            setStatus('Ошибка: ' + err.message, true);
-            isPlaying = false;
-            playBtn.innerHTML = '▶ PLAY';
-            if (audio) { audio.pause(); audio.src = ''; audio = null; }
-        }
-    }
-
-    // --- Остановка ---
-    function stopPlayback() {
-        if (audio) audio.pause();
-        isPlaying = false;
-        playBtn.innerHTML = '▶ PLAY';
-        setStatus('Остановлено');
-    }
-
-    // --- Обработчик кнопки ---
-    async function onPlayClick() {
-        if (isPlaying) {
-            stopPlayback();
-        } else {
-            await startPlayback();
-        }
-    }
-
-    // --- Демо-визуализация (красивая заглушка, если нет звука) ---
-    function demoVisualization() {
-        if (!analyser && (!audio || !audio.src)) {
-            ctx.clearRect(0, 0, width, height);
-            const bars = 64;
-            const time = Date.now() * 0.005;
-            for (let i = 0; i < bars; i++) {
-                let h = 20 + Math.sin(time + i * 0.2) * 18;
-                h = Math.min(height * 0.5, Math.max(6, h));
-                const x = i * (width / bars);
-                const w = (width / bars) * 0.7;
-                ctx.fillStyle = `rgba(255, 140, 0, ${0.5 + Math.sin(time + i) * 0.2})`;
-                ctx.fillRect(x + 2, height - h, w, h);
+                    if (audioContext && audioContext.state !== 'closed') {
+                        if (animationId) cancelAnimationFrame(animationId);
+                        try { await audioContext.close(); } catch(e) {}
+                        audioContext = null;
+                        analyserNode = null;
+                    }
+                    
+                    // Создаём новый аудиоэлемент
+                    audioElement = new Audio();
+                    audioElement.crossOrigin = 'anonymous';
+                    audioElement.src = RADIO_STREAM_URL;
+                    audioElement.preload = 'auto';
+                    
+                    // Ждём готовности
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error('Таймаут загрузки')), 10000);
+                        audioElement.addEventListener('canplay', () => {
+                            clearTimeout(timeout);
+                            resolve();
+                        }, { once: true });
+                        audioElement.addEventListener('error', () => {
+                            clearTimeout(timeout);
+                            reject(new Error('Ошибка загрузки потока'));
+                        }, { once: true });
+                        audioElement.load();
+                    });
+                    
+                    // Инициализируем Web Audio
+                    const webAudioOk = await initWebAudioForRadio();
+                    if (!webAudioOk) throw new Error('Не удалось инициализировать аудио');
+                    
+                    if (audioContext && audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
+                    
+                    await audioElement.play();
+                    isPlaying = true;
+                    playStopBtn.innerHTML = '⏹ STOP';
+                    updateStatus('▶ В эфире');
+                    
+                } catch (err) {
+                    console.error(err);
+                    updateStatus('Ошибка: ' + err.message, true);
+                    isPlaying = false;
+                    playStopBtn.innerHTML = '▶ PLAY';
+                    if (audioElement) {
+                        audioElement.pause();
+                        audioElement.src = '';
+                        audioElement = null;
+                    }
+                }
             }
-            requestAnimationFrame(() => demoVisualization());
         }
-    }
-
-    // --- Запуск ---
-    playBtn.addEventListener('click', onPlayClick);
-    demoVisualization();
-    setStatus('Нажмите PLAY');
-    
-    window.addEventListener('beforeunload', () => {
-        if (audio) audio.pause();
-        if (audioCtx) audioCtx.close();
-    });
-</script>
+        
+        // Демо-визуализация при отсутствии потока (оранжевая)
+        function demoVisualization() {
+            if (!analyserNode && (!audioElement || !audioElement.src)) {
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                const barCount = 64;
+                const time = Date.now() * 0.005;
+                for (let i = 0; i < barCount; i++) {
+                    let fake = 25 + Math.sin(time + i * 0.2) * 18;
+                    fake = Math.min(canvasHeight * 0.5, Math.max(6, fake));
+                    const x = i * (canvasWidth / barCount);
+                    const w = (canvasWidth / barCount) * 0.75;
+                    // ⭐⭐⭐ ИСПРАВЛЕННАЯ СТРОКА (были пропущены обратные кавычки) ⭐⭐⭐
+                    ctx.fillStyle = `rgba(255, 140, 0, ${0.6 + Math.sin(time + i) * 0.2})`;
+                    ctx.fillRect(x + 2, canvasHeight - fake, w, fake);
+                }
+                requestAnimationFrame(() => demoVisualization());
+            }
+        }
+        
+        // Инициализация
+        function init() {
+            resizeCanvas();
+            playStopBtn.addEventListener('click', togglePlayStop);
+            demoVisualization();
+            updateStatus('Нажмите PLAY');
+        }
+        
+        init();
+        
+        window.addEventListener('beforeunload', () => {
+            if (audioElement) audioElement.pause();
+            if (audioContext) audioContext.close();
+        });
+    </script>
 </body>
 </html>
