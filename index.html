@@ -122,29 +122,23 @@
             .mobile-container {
                 padding: 8px 16px 16px 16px;
             }
-            
             .logo-image {
                 margin-top: 0;
             }
-            
             .custom-player {
                 margin-top: 12px;
             }
-            
             .play-stop-btn {
                 width: 160px;
                 padding: 9px 0;
                 font-size: 1.2rem;
             }
-            
             .button-container {
                 padding: 10px 0 8px 0;
             }
-            
             .visualizer-container {
                 padding: 16px 12px 20px 12px;
             }
-            
             canvas {
                 height: 150px;
             }
@@ -154,9 +148,7 @@
 <body>
     <div class="mobile-container">
         <!-- Логотип -->
-        <img src="img/20260225_2221_image.png" 
-             alt="RADIO DJ BOGA" 
-             class="logo-image">
+        <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
 
         <!-- Плеер с кнопкой PLAY сверху -->
         <div class="custom-player">
@@ -164,13 +156,11 @@
             <div class="button-container">
                 <button class="play-stop-btn" id="playStopBtn">▶ PLAY</button>
             </div>
-
             <!-- Окно с эквалайзером -->
             <div class="visualizer-container">
                 <canvas id="visualizerCanvas" width="800" height="180"></canvas>
             </div>
         </div>
-
         <main class="content">
             <!-- Здесь будет ваш дополнительный контент -->
         </main>
@@ -181,10 +171,7 @@
         // НАСТРОЙКИ ВАШЕГО РАДИО ВЕЩАНИЯ
         // ============================================================
         // ВСТАВЬТЕ СЮДА URL ВАШЕГО ПОТОКА (IP:PORT или домен)
-        const RADIO_STREAM_URL = "http://188.134.73.163:8000/stream";  // ← ИЗМЕНИТЕ НА ВАШ URL!
-        
-        // ============================================================
-        // КОД ПЛЕЕРА
+        const RADIO_STREAM_URL = "http://188.134.73.163:8000/stream"; // ← ИЗМЕНИТЕ НА ВАШ URL!
         // ============================================================
         
         // DOM элементы
@@ -413,6 +400,7 @@
                     fake = Math.min(canvasHeight * 0.5, Math.max(6, fake));
                     const x = i * (canvasWidth / barCount);
                     const w = (canvasWidth / barCount) * 0.75;
+                    // ⭐⭐⭐ ИСПРАВЛЕННАЯ СТРОКА (были пропущены обратные кавычки) ⭐⭐⭐
                     ctx.fillStyle = `rgba(255, 140, 0, ${0.6 + Math.sin(time + i) * 0.2})`;
                     ctx.fillRect(x + 2, canvasHeight - fake, w, fake);
                 }
@@ -423,7 +411,6 @@
         // Инициализация
         function init() {
             resizeCanvas();
-            
             playStopBtn.addEventListener('click', togglePlayStop);
             
             // Загружаем поток
