@@ -364,43 +364,43 @@
             return true;
         }
         
-        // Функция play/stop
-        async function togglePlayStop() {
-            if (!audioElement || !currentStreamUrl) {
-                await loadRadioStream(RADIO_STREAM_URL);
-                setTimeout(async () => {
-                    if (audioElement) {
-                        try {
-                            await audioElement.play();
-                            isPlaying = true;
-                            playStopBtn.innerHTML = '⏹ STOP';
-                            if (audioContext && audioContext.state === 'suspended') {
-                                await audioContext.resume();
-                            }
-                        } catch (err) {
-                            console.log("Автоплей заблокирован:", err);
-                        }
-                    }
-                }, 100);
+    async function togglePlayStop() {
+        try {
+            // Если ещё не создан audio — создаём и привязываем поток
+            if (!audioElement) {
+                audioElement = new Audio(RADIO_STREAM_URL);
+                audioElement.crossOrigin = "anonymous";
+                audioElement.preload = "none";
+
+                await initWebAudioForRadio();
+            }
+
+            // Если играет → стоп
+            if (!audioElement.paused) {
+                audioElement.pause();
+                audioElement.src = ""; // ВАЖНО: полностью рвём поток
+                audioElement = null;
+
+                isPlaying = false;
+                playStopBtn.innerHTML = "▶ PLAY";
                 return;
             }
-            
-            if (audioContext && audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
-            
-            if (audioElement.paused) {
-                await audioElement.play().catch(e => {
-                    console.error("Ошибка воспроизведения", e);
-                });
-                isPlaying = true;
-                playStopBtn.innerHTML = '⏹ STOP';
-            } else {
-                audioElement.pause();
-                isPlaying = false;
-                playStopBtn.innerHTML = '▶ PLAY';
-            }
+
+            // Если остановлен → запускаем
+            audioElement = new Audio(RADIO_STREAM_URL);
+            audioElement.crossOrigin = "anonymous";
+
+            await initWebAudioForRadio();
+
+            await audioElement.play();
+
+            isPlaying = true;
+            playStopBtn.innerHTML = "⏹ STOP";
+
+        } catch (error) {
+            console.error("Ошибка плеера:", error);
         }
+    }
         
         // Демо-визуализация при отсутствии потока (оранжевая)
         function demoVisualization() {
