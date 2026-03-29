@@ -161,7 +161,6 @@
                 <canvas id="visualizerCanvas" width="800" height="180"></canvas>
             </div>
         </div>
-        <div class="status-text" id="statusText" style="text-align:center; margin-top:10px; font-size:0.75rem;">Готов к воспроизведению</div>
         <main class="content">
             <!-- Здесь будет ваш дополнительный контент -->
         </main>
@@ -171,17 +170,20 @@
         // ============================================================
         // НАСТРОЙКИ ВАШЕГО РАДИО ВЕЩАНИЯ
         // ============================================================
-        const RADIO_STREAM_URL = "http://188.134.73.163:8000/stream";
+        // ВСТАВЬТЕ СЮДА URL ВАШЕГО ПОТОКА (IP:PORT или домен)
+        const RADIO_STREAM_URL = "http://188.134.73.163:8000/stream"; // ← ИЗМЕНИТЕ НА ВАШ URL!
+        // ============================================================
+
+        // КОД ПЛЕЕРА
         // ============================================================
 
         // DOM элементы
         const playStopBtn = document.getElementById('playStopBtn');
-        const statusSpan = document.getElementById('statusText');
-        
+
         // Canvas для визуализации
         const canvas = document.getElementById('visualizerCanvas');
         const ctx = canvas.getContext('2d');
-        
+
         // Web Audio переменные
         let audioElement = null;
         let audioContext = null;
@@ -190,18 +192,13 @@
         let gainNode = null;
         let animationId = null;
         let isPlaying = false;
-        
+        let currentStreamUrl = RADIO_STREAM_URL;
+
         // Настройки визуализации
         let dataArray = null;
         let canvasWidth = 800;
         let canvasHeight = 180;
-        
-        function updateStatus(msg, isError = false) {
-            statusSpan.textContent = msg;
-            statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
-            console.log(msg);
-        }
-        
+
         // Инициализация canvas размера
         function resizeCanvas() {
             const container = canvas.parentElement;
@@ -215,15 +212,15 @@
                 dataArray = new Uint8Array(bufferLength);
             }
         }
-        
+
         window.addEventListener('resize', () => {
             setTimeout(resizeCanvas, 100);
         });
-        
+
         // Создание Web Audio цепочки
         async function initWebAudioForRadio() {
             if (!audioElement) return false;
-            
+
             if (audioContext && audioContext.state !== 'closed') {
                 if (animationId) {
                     cancelAnimationFrame(animationId);
@@ -233,7 +230,7 @@
                     await audioContext.close();
                 } catch(e) {}
             }
-            
+
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 sourceNode = audioContext.createMediaElementSource(audioElement);
@@ -242,11 +239,11 @@
                 analyserNode.smoothingTimeConstant = 0.7;
                 gainNode = audioContext.createGain();
                 gainNode.gain.value = 0.8;
-                
+
                 sourceNode.connect(analyserNode);
                 analyserNode.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
+
                 const bufferLength = analyserNode.frequencyBinCount;
                 dataArray = new Uint8Array(bufferLength);
                 startVisualization();
@@ -256,127 +253,142 @@
                 return false;
             }
         }
-        
+
         // Анимация визуализатора - ОРАНЖЕВЫЙ градиент
         function startVisualization() {
             if (animationId) cancelAnimationFrame(animationId);
-            
+
             function draw() {
                 if (!analyserNode || !ctx) {
                     animationId = requestAnimationFrame(draw);
                     return;
                 }
-                
+
                 if (dataArray) {
                     analyserNode.getByteFrequencyData(dataArray);
                 } else {
                     animationId = requestAnimationFrame(draw);
                     return;
                 }
-                
+
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-                
+
                 const barCount = analyserNode.frequencyBinCount;
+                // ОРАНЖЕВЫЙ градиент для эквалайзера
                 const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
                 gradient.addColorStop(0, '#ffaa33');
                 gradient.addColorStop(0.5, '#ff8c00');
                 gradient.addColorStop(1, '#ff6b00');
-                
+
                 for (let i = 0; i < barCount; i++) {
                     let value = dataArray[i] || 0;
                     let percent = value / 255;
                     let barHeight = Math.max(4, percent * canvasHeight * 0.85);
                     const x = i * (canvasWidth / barCount);
                     const w = (canvasWidth / barCount) * 0.8;
-                    
+
                     ctx.fillStyle = gradient;
                     ctx.shadowBlur = 8;
                     ctx.shadowColor = '#ff8c00';
                     ctx.fillRect(x + 2, canvasHeight - barHeight, w - 1, barHeight);
                 }
                 ctx.shadowBlur = 0;
-                
+
                 animationId = requestAnimationFrame(draw);
             }
-            
+
             draw();
         }
-        
-        // Функция play/stop
-        async function togglePlayStop() {
-            if (isPlaying) {
-                // Остановка
-                if (audioElement) {
-                    audioElement.pause();
+
+        // Загрузка радио потока
+        async function loadRadioStream(url) {
+            if (!url || url.trim() === '') {
+                console.error('URL не указан');
+                return false;
+            }
+
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.src = '';
+            }
+
+            audioElement = new Audio();
+            audioElement.crossOrigin = 'anonymous';
+            audioElement.src = url;
+            audioElement.preload = 'auto';
+
+            currentStreamUrl = url;
+
+            audioElement.addEventListener('canplay', async () => {
+                await initWebAudioForRadio();
+                if (isPlaying) {
+                    await audioElement.play().catch(e => console.warn);
                 }
-                isPlaying = false;
-                playStopBtn.innerHTML = '▶ PLAY';
-                updateStatus('Остановлено');
-            } else {
-                // Воспроизведение
-                try {
-                    updateStatus('Подключение к потоку...');
-                    
-                    // Очищаем предыдущее
-                    if (audioElement) {
-                        audioElement.pause();
-                        audioElement.src = '';
-                        audioElement = null;
-                    }
-                    if (audioContext && audioContext.state !== 'closed') {
-                        if (animationId) cancelAnimationFrame(animationId);
-                        try { await audioContext.close(); } catch(e) {}
-                        audioContext = null;
-                        analyserNode = null;
-                    }
-                    
-                    // Создаём новый аудиоэлемент
-                    audioElement = new Audio();
-                    audioElement.crossOrigin = 'anonymous';
-                    audioElement.src = RADIO_STREAM_URL;
-                    audioElement.preload = 'auto';
-                    
-                    // Ждём готовности
-                    await new Promise((resolve, reject) => {
-                        const timeout = setTimeout(() => reject(new Error('Таймаут загрузки')), 10000);
-                        audioElement.addEventListener('canplay', () => {
-                            clearTimeout(timeout);
-                            resolve();
-                        }, { once: true });
-                        audioElement.addEventListener('error', () => {
-                            clearTimeout(timeout);
-                            reject(new Error('Ошибка загрузки потока'));
-                        }, { once: true });
-                        audioElement.load();
-                    });
-                    
-                    // Инициализируем Web Audio
-                    const webAudioOk = await initWebAudioForRadio();
-                    if (!webAudioOk) throw new Error('Не удалось инициализировать аудио');
-                    
-                    if (audioContext && audioContext.state === 'suspended') {
-                        await audioContext.resume();
-                    }
-                    
-                    await audioElement.play();
-                    isPlaying = true;
-                    playStopBtn.innerHTML = '⏹ STOP';
-                    updateStatus('▶ В эфире');
-                    
-                } catch (err) {
-                    console.error(err);
-                    updateStatus('Ошибка: ' + err.message, true);
+            });
+
+            audioElement.addEventListener('playing', () => {
+                isPlaying = true;
+                playStopBtn.innerHTML = '⏹ STOP';
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+            });
+
+            audioElement.addEventListener('pause', () => {
+                if (!audioElement.src) return;
+                if (!audioElement.ended) {
                     isPlaying = false;
                     playStopBtn.innerHTML = '▶ PLAY';
-                    if (audioElement) {
-                        audioElement.pause();
-                        audioElement.src = '';
-                        audioElement = null;
-                    }
                 }
+            });
+
+            audioElement.addEventListener('error', () => {
+                isPlaying = false;
+                playStopBtn.innerHTML = '▶ PLAY';
+                console.error('Ошибка подключения к потоку');
+            });
+
+            return true;
+        }
+
+        // Функция play/stop
+        async function togglePlayStop() {
+            if (!audioElement || !currentStreamUrl) {
+                await loadRadioStream(RADIO_STREAM_URL);
+                setTimeout(async () => {
+                    if (audioElement) {
+                        try {
+                            await audioElement.play();
+                            isPlaying = true;
+                            playStopBtn.innerHTML = '⏹ STOP';
+                            if (audioContext && audioContext.state === 'suspended') {
+                                await audioContext.resume();
+                            }
+                        } catch (err) {
+                            console.log("Автоплей заблокирован:", err);
+                        }
+                    }
+                }, 100);
+                return;
+            }
+
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            if (audioElement.paused) {
+                await audioElement.play().catch(e => {
+                    console.error("Ошибка воспроизведения", e);
+                });
+                isPlaying = true;
+                playStopBtn.innerHTML = '⏹ STOP';
+            } else {
+                audioElement.pause();
+                isPlaying = false;
+                playStopBtn.innerHTML = '▶ PLAY';
             }
         }
-        
+
         // Демо-визуализация при отсутствии потока (оранжевая)
         function demoVisualization() {
             if (!analyserNode && (!audioElement || !audioElement.src)) {
@@ -388,28 +400,34 @@
                     fake = Math.min(canvasHeight * 0.5, Math.max(6, fake));
                     const x = i * (canvasWidth / barCount);
                     const w = (canvasWidth / barCount) * 0.75;
-                    // ⭐⭐⭐ ИСПРАВЛЕННАЯ СТРОКА (были пропущены обратные кавычки) ⭐⭐⭐
                     ctx.fillStyle = `rgba(255, 140, 0, ${0.6 + Math.sin(time + i) * 0.2})`;
                     ctx.fillRect(x + 2, canvasHeight - fake, w, fake);
                 }
                 requestAnimationFrame(() => demoVisualization());
             }
         }
-        
+
         // Инициализация
         function init() {
             resizeCanvas();
             playStopBtn.addEventListener('click', togglePlayStop);
+
+            // Загружаем поток
+            setTimeout(() => {
+                loadRadioStream(RADIO_STREAM_URL);
+            }, 500);
+
             demoVisualization();
-            updateStatus('Нажмите PLAY');
         }
-        
+
         init();
-        
+
         window.addEventListener('beforeunload', () => {
             if (audioElement) audioElement.pause();
             if (audioContext) audioContext.close();
         });
+
+        console.log('🎵 RADIO DJ BOGA плеер запущен | Верхняя часть плеера уже');
     </script>
 </body>
 </html>
