@@ -400,7 +400,7 @@
                     fake = Math.min(canvasHeight * 0.5, Math.max(6, fake));
                     const x = i * (canvasWidth / barCount);
                     const w = (canvasWidth / barCount) * 0.75;
-                    ctx.fillStyle = rgba(255, 140, 0, ${0.6 + Math.sin(time + i) * 0.2});
+                    ctx.fillStyle = `rgba(255, 140, 0, ${0.6 + Math.sin(time + i) * 0.2})`;
                     ctx.fillRect(x + 2, canvasHeight - fake, w, fake);
                 }
                 requestAnimationFrame(() => demoVisualization());
