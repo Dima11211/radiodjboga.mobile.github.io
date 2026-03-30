@@ -35,19 +35,15 @@
             position: relative;
         }
 
-        /* Логотип */
         .logo-image {
             width: 100%;
             max-width: 100%;
             height: auto;
             display: block;
             margin: 5px 0 0 0;
-            position: relative;
-            z-index: 10;
             filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08));
         }
 
-        /* ========== ПЛЕЕР ========== */
         .custom-player {
             background: #03fff7;
             border-radius: 0;
@@ -55,23 +51,17 @@
             margin-top: 15px;
             margin-bottom: 20px;
             box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
-            position: relative;
-            z-index: 5;
             overflow: hidden;
-            border: none;
         }
 
-        /* Контейнер для кнопки - верхняя часть, уже */
         .button-container {
             display: flex;
             justify-content: center;
             padding: 4px 0 4px 0;
-            margin: 0;
             background: #03fff7;
             border-bottom: 2px solid rgba(255, 255, 255, 0.5);
         }
 
-        /* Прямоугольная бордовая кнопка play/stop - немного уже */
         .play-stop-btn {
             background: linear-gradient(135deg, #8b0000, #5a0000);
             border: none;
@@ -89,55 +79,39 @@
             box-shadow: 0 6px 16px rgba(139, 0, 0, 0.4);
             gap: 10px;
             letter-spacing: 1px;
-            margin: 0;
         }
 
         .play-stop-btn:active {
             transform: scale(0.97);
-            box-shadow: 0 3px 10px rgba(139, 0, 0, 0.5);
         }
 
-        /* Визуальный эквалайзер */
         .visualizer-container {
             background: rgba(0, 0, 0, 0.15);
-            border-radius: 0;
             padding: 20px 16px 24px 16px;
-            backdrop-filter: blur(4px);
         }
 
         canvas {
             width: 100%;
             height: 180px;
             display: block;
-            border-radius: 0;
             background: rgba(0, 0, 0, 0.2);
         }
 
-        .content {
-            margin-top: 10px;
+        .status-text {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.75rem;
+            font-weight: 500;
         }
 
-        /* Адаптация под мобильные */
         @media (max-width: 480px) {
             .mobile-container {
                 padding: 8px 16px 16px 16px;
-            }
-            .logo-image {
-                margin-top: 0;
-            }
-            .custom-player {
-                margin-top: 12px;
             }
             .play-stop-btn {
                 width: 160px;
                 padding: 9px 0;
                 font-size: 1.2rem;
-            }
-            .button-container {
-                padding: 10px 0 8px 0;
-            }
-            .visualizer-container {
-                padding: 16px 12px 20px 12px;
             }
             canvas {
                 height: 150px;
@@ -147,44 +121,33 @@
 </head>
 <body>
     <div class="mobile-container">
-        <!-- Логотип -->
         <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
 
-        <!-- Плеер с кнопкой PLAY сверху -->
         <div class="custom-player">
-            <!-- Кнопка play/stop - сверху, уже -->
             <div class="button-container">
                 <button class="play-stop-btn" id="playStopBtn">▶ PLAY</button>
             </div>
-            <!-- Окно с эквалайзером -->
             <div class="visualizer-container">
                 <canvas id="visualizerCanvas" width="800" height="180"></canvas>
             </div>
         </div>
-        <main class="content">
-            <!-- Здесь будет ваш дополнительный контент -->
-        </main>
+
+        <div class="status-text" id="statusText">Готов к воспроизведению</div>
+        <main class="content"></main>
     </div>
 
     <script>
         // ============================================================
         // НАСТРОЙКИ ВАШЕГО РАДИО ВЕЩАНИЯ
         // ============================================================
-        // ВСТАВЬТЕ СЮДА URL ВАШЕГО ПОТОКА (IP:PORT или домен)
-        const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream"; // ← ИЗМЕНИТЕ НА ВАШ URL!
+        const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
         // ============================================================
 
-        // КОД ПЛЕЕРА
-        // ============================================================
-
-        // DOM элементы
         const playStopBtn = document.getElementById('playStopBtn');
-
-        // Canvas для визуализации
+        const statusSpan = document.getElementById('statusText');
         const canvas = document.getElementById('visualizerCanvas');
         const ctx = canvas.getContext('2d');
-
-        // Web Audio переменные
+        
         let audioElement = null;
         let audioContext = null;
         let sourceNode = null;
@@ -192,14 +155,17 @@
         let gainNode = null;
         let animationId = null;
         let isPlaying = false;
-        let currentStreamUrl = RADIO_STREAM_URL;
-
-        // Настройки визуализации
+        
         let dataArray = null;
         let canvasWidth = 800;
         let canvasHeight = 180;
-
-        // Инициализация canvas размера
+        
+        function updateStatus(msg, isError = false) {
+            statusSpan.textContent = msg;
+            statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
+            console.log(msg);
+        }
+        
         function resizeCanvas() {
             const container = canvas.parentElement;
             const width = container.clientWidth - 32;
@@ -212,25 +178,18 @@
                 dataArray = new Uint8Array(bufferLength);
             }
         }
-
-        window.addEventListener('resize', () => {
-            setTimeout(resizeCanvas, 100);
-        });
-
-        // Создание Web Audio цепочки
+        
+        window.addEventListener('resize', () => setTimeout(resizeCanvas, 100));
+        resizeCanvas();
+        
         async function initWebAudioForRadio() {
             if (!audioElement) return false;
-
+            
             if (audioContext && audioContext.state !== 'closed') {
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                    animationId = null;
-                }
-                try {
-                    await audioContext.close();
-                } catch(e) {}
+                if (animationId) cancelAnimationFrame(animationId);
+                try { await audioContext.close(); } catch(e) {}
             }
-
+            
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 sourceNode = audioContext.createMediaElementSource(audioElement);
@@ -239,11 +198,11 @@
                 analyserNode.smoothingTimeConstant = 0.7;
                 gainNode = audioContext.createGain();
                 gainNode.gain.value = 0.8;
-
+                
                 sourceNode.connect(analyserNode);
                 analyserNode.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-
+                
                 const bufferLength = analyserNode.frequencyBinCount;
                 dataArray = new Uint8Array(bufferLength);
                 startVisualization();
@@ -253,143 +212,109 @@
                 return false;
             }
         }
-
-        // Анимация визуализатора - ОРАНЖЕВЫЙ градиент
+        
         function startVisualization() {
             if (animationId) cancelAnimationFrame(animationId);
-
             function draw() {
                 if (!analyserNode || !ctx) {
                     animationId = requestAnimationFrame(draw);
                     return;
                 }
-
-                if (dataArray) {
-                    analyserNode.getByteFrequencyData(dataArray);
-                } else {
-                    animationId = requestAnimationFrame(draw);
-                    return;
-                }
-
+                if (dataArray) analyserNode.getByteFrequencyData(dataArray);
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
                 const barCount = analyserNode.frequencyBinCount;
-                // ОРАНЖЕВЫЙ градиент для эквалайзера
                 const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
                 gradient.addColorStop(0, '#ffaa33');
                 gradient.addColorStop(0.5, '#ff8c00');
                 gradient.addColorStop(1, '#ff6b00');
-
                 for (let i = 0; i < barCount; i++) {
                     let value = dataArray[i] || 0;
                     let percent = value / 255;
                     let barHeight = Math.max(4, percent * canvasHeight * 0.85);
                     const x = i * (canvasWidth / barCount);
                     const w = (canvasWidth / barCount) * 0.8;
-
                     ctx.fillStyle = gradient;
                     ctx.shadowBlur = 8;
                     ctx.shadowColor = '#ff8c00';
                     ctx.fillRect(x + 2, canvasHeight - barHeight, w - 1, barHeight);
                 }
                 ctx.shadowBlur = 0;
-
                 animationId = requestAnimationFrame(draw);
             }
-
             draw();
         }
-
-        // Загрузка радио потока
-        async function loadRadioStream(url) {
-            if (!url || url.trim() === '') {
-                console.error('URL не указан');
-                return false;
-            }
-
-            if (audioElement) {
-                audioElement.pause();
-                audioElement.src = '';
-            }
-
-            audioElement = new Audio();
-            audioElement.crossOrigin = 'anonymous';
-            audioElement.src = url;
-            audioElement.preload = 'auto';
-
-            currentStreamUrl = url;
-
-            audioElement.addEventListener('canplay', async () => {
-                await initWebAudioForRadio();
-                if (isPlaying) {
-                    await audioElement.play().catch(e => console.warn);
+        
+        async function startPlayback() {
+            try {
+                updateStatus('Подключение к потоку...');
+                
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                    audioElement = null;
                 }
-            });
-
-            audioElement.addEventListener('playing', () => {
-                isPlaying = true;
-                playStopBtn.innerHTML = '⏹ STOP';
-                if (audioContext && audioContext.state === 'suspended') {
-                    audioContext.resume();
+                if (audioContext && audioContext.state !== 'closed') {
+                    if (animationId) cancelAnimationFrame(animationId);
+                    try { await audioContext.close(); } catch(e) {}
+                    audioContext = null;
+                    analyserNode = null;
                 }
-            });
-
-            audioElement.addEventListener('pause', () => {
-                if (!audioElement.src) return;
-                if (!audioElement.ended) {
-                    isPlaying = false;
-                    playStopBtn.innerHTML = '▶ PLAY';
-                }
-            });
-
-            audioElement.addEventListener('error', () => {
-                isPlaying = false;
-                playStopBtn.innerHTML = '▶ PLAY';
-                console.error('Ошибка подключения к потоку');
-            });
-
-            return true;
-        }
-
-        // Функция play/stop
-        async function togglePlayStop() {
-            if (!audioElement || !currentStreamUrl) {
-                await loadRadioStream(RADIO_STREAM_URL);
-                setTimeout(async () => {
-                    if (audioElement) {
-                        try {
-                            await audioElement.play();
-                            isPlaying = true;
-                            playStopBtn.innerHTML = '⏹ STOP';
-                            if (audioContext && audioContext.state === 'suspended') {
-                                await audioContext.resume();
-                            }
-                        } catch (err) {
-                            console.log("Автоплей заблокирован:", err);
-                        }
-                    }
-                }, 100);
-                return;
-            }
-
-            if (audioContext && audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
-
-            if (audioElement.paused) {
-                await audioElement.play().catch(e => {
-                    console.error("Ошибка воспроизведения", e);
+                
+                const newAudio = new Audio();
+                newAudio.crossOrigin = 'anonymous';
+                newAudio.src = RADIO_STREAM_URL;
+                newAudio.preload = 'auto';
+                
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Таймаут загрузки')), 15000);
+                    newAudio.addEventListener('canplay', () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    }, { once: true });
+                    newAudio.addEventListener('error', () => {
+                        clearTimeout(timeout);
+                        reject(new Error('Ошибка загрузки потока'));
+                    }, { once: true });
+                    newAudio.load();
                 });
+                
+                audioElement = newAudio;
+                const webAudioOk = await initWebAudioForRadio();
+                if (!webAudioOk) throw new Error('Не удалось инициализировать аудио');
+                
+                if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
+                await audioElement.play();
                 isPlaying = true;
                 playStopBtn.innerHTML = '⏹ STOP';
-            } else {
-                audioElement.pause();
+                updateStatus('▶ В эфире');
+            } catch (err) {
+                console.error(err);
+                updateStatus('Ошибка: ' + err.message, true);
                 isPlaying = false;
                 playStopBtn.innerHTML = '▶ PLAY';
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                    audioElement = null;
+                }
             }
         }
-
-        // Демо-визуализация при отсутствии потока (оранжевая)
+        
+        function stopPlayback() {
+            if (audioElement) audioElement.pause();
+            isPlaying = false;
+            playStopBtn.innerHTML = '▶ PLAY';
+            updateStatus('Остановлено');
+        }
+        
+        async function togglePlayStop() {
+            if (isPlaying) {
+                stopPlayback();
+            } else {
+                await startPlayback();
+            }
+        }
+        
         function demoVisualization() {
             if (!analyserNode && (!audioElement || !audioElement.src)) {
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -406,28 +331,15 @@
                 requestAnimationFrame(() => demoVisualization());
             }
         }
-
-        // Инициализация
-        function init() {
-            resizeCanvas();
-            playStopBtn.addEventListener('click', togglePlayStop);
-
-            // Загружаем поток
-            setTimeout(() => {
-                loadRadioStream(RADIO_STREAM_URL);
-            }, 500);
-
-            demoVisualization();
-        }
-
-        init();
-
+        
+        playStopBtn.addEventListener('click', togglePlayStop);
+        demoVisualization();
+        updateStatus('Нажмите PLAY');
+        
         window.addEventListener('beforeunload', () => {
             if (audioElement) audioElement.pause();
             if (audioContext) audioContext.close();
         });
-
-        console.log('🎵 RADIO DJ BOGA плеер запущен | Верхняя часть плеера уже');
     </script>
 </body>
 </html>
