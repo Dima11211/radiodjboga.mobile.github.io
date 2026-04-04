@@ -220,38 +220,45 @@
         }
         
         // Функция для получения цвета в зависимости от высоты столбца
-        // 0 = низ (зеленый), 1 = верх (красный), через всю радугу
+        // 0 = низ (зеленый), 1 = верх (темно-синий), через всю радугу
         function getColorForHeight(percent, isPeak = false) {
             // percent: 0 = низ столбца, 1 = верх столбца
-            // Цвета радуги: зеленый -> желтый -> оранжевый -> красный
+            // Цвета радуги: зеленый -> желтый -> оранжевый -> красный -> фиолетовый -> темно-синий
             let hue;
             
-            if (percent < 0.25) {
+            if (percent < 0.16) {
                 // Зеленый -> Желто-зеленый
-                hue = 120 - (percent / 0.25) * 60;
-            } else if (percent < 0.5) {
+                hue = 120 - (percent / 0.16) * 60;
+            } else if (percent < 0.33) {
                 // Желто-зеленый -> Желтый
-                hue = 60 - ((percent - 0.25) / 0.25) * 30;
-            } else if (percent < 0.75) {
+                hue = 60 - ((percent - 0.16) / 0.17) * 30;
+            } else if (percent < 0.5) {
                 // Желтый -> Оранжевый
-                hue = 30 - ((percent - 0.5) / 0.25) * 15;
-            } else {
+                hue = 30 - ((percent - 0.33) / 0.17) * 15;
+            } else if (percent < 0.66) {
                 // Оранжевый -> Красный
-                hue = 15 - ((percent - 0.75) / 0.25) * 15;
+                hue = 15 - ((percent - 0.5) / 0.16) * 15;
+            } else if (percent < 0.83) {
+                // Красный -> Фиолетовый
+                hue = 0 - ((percent - 0.66) / 0.17) * 60;
+                if (hue < 0) hue += 360;
+            } else {
+                // Фиолетовый -> Темно-синий
+                hue = 300 - ((percent - 0.83) / 0.17) * 60;
             }
             
-            // Корректируем, чтобы красный был в самом верху
-            if (percent > 0.9) {
-                hue = 0;
+            // Корректируем, чтобы темно-синий был в самом верху
+            if (percent > 0.95) {
+                hue = 240;
             }
             
-            let sat = 90;
-            let light = 55;
+            let sat = 85;
+            let light = 50;
             
             // Пики делаем ярче
             if (isPeak && percent > 0.8) {
-                light = 70;
-                sat = 100;
+                light = 65;
+                sat = 95;
             }
             
             return `hsl(${hue}, ${sat}%, ${light}%)`;
@@ -306,20 +313,18 @@
                     // Пик ли это
                     const isPeak = value > 180;
                     
-                    // 🎨 РИСУЕМ СТОЛБЕЦ С ГРАДИЕНТОМ ОТ ЗЕЛЕНОГО ДО КРАСНОГО
-                    // Создаем вертикальный градиент для каждого столбца
+                    // 🎨 РИСУЕМ СТОЛБЕЦ С ГРАДИЕНТОМ 
+                    // Снизу вверх: Зеленый -> Желтый -> Оранжевый -> Красный -> Фиолетовый -> Темно-синий
                     const gradient = ctx.createLinearGradient(x, canvasHeight - barHeight, x, canvasHeight);
                     
                     // Добавляем цвета по всей высоте столбца
-                    // Низ (0) = зеленый, середина = желтый/оранжевый, верх = красный
-                    gradient.addColorStop(0, getColorForHeight(0, false));      // Низ - зеленый
-                    gradient.addColorStop(0.15, getColorForHeight(0.15, false));
-                    gradient.addColorStop(0.3, getColorForHeight(0.3, false));   // Желто-зеленый
-                    gradient.addColorStop(0.45, getColorForHeight(0.45, false));  // Желтый
-                    gradient.addColorStop(0.6, getColorForHeight(0.6, false));    // Оранжевый
-                    gradient.addColorStop(0.75, getColorForHeight(0.75, false));
-                    gradient.addColorStop(0.9, getColorForHeight(0.9, false));
-                    gradient.addColorStop(1, getColorForHeight(1, isPeak));       // Верх - красный
+                    gradient.addColorStop(0, getColorForHeight(0, false));           // Низ - зеленый
+                    gradient.addColorStop(0.16, getColorForHeight(0.16, false));     // Желто-зеленый
+                    gradient.addColorStop(0.33, getColorForHeight(0.33, false));     // Желтый
+                    gradient.addColorStop(0.5, getColorForHeight(0.5, false));       // Оранжевый
+                    gradient.addColorStop(0.66, getColorForHeight(0.66, false));     // Красный
+                    gradient.addColorStop(0.83, getColorForHeight(0.83, false));     // Фиолетовый
+                    gradient.addColorStop(1, getColorForHeight(1, isPeak));          // Верх - темно-синий
                     
                     ctx.fillStyle = gradient;
                     ctx.shadowBlur = isPeak ? 10 : 4;
@@ -330,7 +335,7 @@
                     
                     // Добавляем свечение на вершине для пиков
                     if (isPeak && barHeight > 15) {
-                        ctx.fillStyle = `rgba(255, 50, 50, 0.6)`;
+                        ctx.fillStyle = `rgba(100, 100, 255, 0.6)`;
                         ctx.fillRect(x + 1, canvasHeight - barHeight - 2, w - 1, 4);
                     }
                 }
@@ -442,13 +447,14 @@
                     // Градиент для демо-режима
                     const gradient = ctx.createLinearGradient(x, canvasHeight - fake, x, canvasHeight);
                     gradient.addColorStop(0, '#00ff00');      // Зеленый низ
-                    gradient.addColorStop(0.3, '#ffff00');    // Желтый
-                    gradient.addColorStop(0.6, '#ff8800');    // Оранжевый
-                    gradient.addColorStop(1, '#ff0000');      // Красный верх
+                    gradient.addColorStop(0.25, '#ffff00');   // Желтый
+                    gradient.addColorStop(0.5, '#ff8800');    // Оранжевый
+                    gradient.addColorStop(0.75, '#ff0000');   // Красный
+                    gradient.addColorStop(1, '#0000aa');      // Темно-синий верх
                     
                     ctx.fillStyle = gradient;
                     ctx.shadowBlur = 4;
-                    ctx.shadowColor = '#ff8c00';
+                    ctx.shadowColor = '#8888ff';
                     ctx.fillRect(x + 1, canvasHeight - fake, w - 1, fake);
                 }
                 ctx.shadowBlur = 0;
