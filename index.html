@@ -95,6 +95,7 @@
             height: 180px;
             display: block;
             background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
         }
 
         .status-text {
@@ -160,6 +161,9 @@
         let canvasWidth = 800;
         let canvasHeight = 180;
         
+        // Храним предыдущие значения для плавности
+        let prevValues = [];
+        
         function updateStatus(msg, isError = false) {
             statusSpan.textContent = msg;
             statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
@@ -176,6 +180,7 @@
             if (analyserNode) {
                 const bufferLength = analyserNode.frequencyBinCount;
                 dataArray = new Uint8Array(bufferLength);
+                prevValues = new Array(bufferLength).fill(0);
             }
         }
         
@@ -194,7 +199,7 @@
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 sourceNode = audioContext.createMediaElementSource(audioElement);
                 analyserNode = audioContext.createAnalyser();
-                analyserNode.fftSize = 128;
+                analyserNode.fftSize = 256;
                 analyserNode.smoothingTimeConstant = 0.7;
                 gainNode = audioContext.createGain();
                 gainNode.gain.value = 0.8;
@@ -205,6 +210,7 @@
                 
                 const bufferLength = analyserNode.frequencyBinCount;
                 dataArray = new Uint8Array(bufferLength);
+                prevValues = new Array(bufferLength).fill(0);
                 startVisualization();
                 return true;
             } catch (error) {
@@ -213,8 +219,47 @@
             }
         }
         
+        // Функция для получения цвета в зависимости от высоты столбца
+        // 0 = низ (зеленый), 1 = верх (красный), через всю радугу
+        function getColorForHeight(percent, isPeak = false) {
+            // percent: 0 = низ столбца, 1 = верх столбца
+            // Цвета радуги: зеленый -> желтый -> оранжевый -> красный
+            let hue;
+            
+            if (percent < 0.25) {
+                // Зеленый -> Желто-зеленый
+                hue = 120 - (percent / 0.25) * 60;
+            } else if (percent < 0.5) {
+                // Желто-зеленый -> Желтый
+                hue = 60 - ((percent - 0.25) / 0.25) * 30;
+            } else if (percent < 0.75) {
+                // Желтый -> Оранжевый
+                hue = 30 - ((percent - 0.5) / 0.25) * 15;
+            } else {
+                // Оранжевый -> Красный
+                hue = 15 - ((percent - 0.75) / 0.25) * 15;
+            }
+            
+            // Корректируем, чтобы красный был в самом верху
+            if (percent > 0.9) {
+                hue = 0;
+            }
+            
+            let sat = 90;
+            let light = 55;
+            
+            // Пики делаем ярче
+            if (isPeak && percent > 0.8) {
+                light = 70;
+                sat = 100;
+            }
+            
+            return `hsl(${hue}, ${sat}%, ${light}%)`;
+        }
+        
         function startVisualization() {
             if (animationId) cancelAnimationFrame(animationId);
+            
             function draw() {
                 if (!analyserNode || !ctx) {
                     animationId = requestAnimationFrame(draw);
@@ -222,23 +267,75 @@
                 }
                 if (dataArray) analyserNode.getByteFrequencyData(dataArray);
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                
                 const barCount = analyserNode.frequencyBinCount;
-                const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-                gradient.addColorStop(0, '#ffaa33');
-                gradient.addColorStop(0.5, '#ff8c00');
-                gradient.addColorStop(1, '#ff6b00');
+                const halfBarCount = barCount / 2;
+                
+                // Находим максимальное значение
+                let maxValue = 0;
                 for (let i = 0; i < barCount; i++) {
-                    let value = dataArray[i] || 0;
-                    let percent = value / 255;
+                    if (dataArray[i] > maxValue) maxValue = dataArray[i];
+                }
+                if (maxValue < 1) maxValue = 255;
+                
+                // Создаем массив для отображения "ёлочкой"
+                const displayBars = [];
+                for (let i = 0; i < barCount; i++) {
+                    let distanceFromCenter = Math.abs(i - halfBarCount) / halfBarCount;
+                    let frequencyWeight = 1 - distanceFromCenter;
+                    let boostedValue = dataArray[i] * (0.5 + frequencyWeight * 0.8);
+                    displayBars[i] = Math.min(255, boostedValue);
+                }
+                
+                // Рисуем столбцы
+                for (let i = 0; i < barCount; i++) {
+                    let value = displayBars[i] || 0;
+                    let percent = value / maxValue;
                     let barHeight = Math.max(4, percent * canvasHeight * 0.85);
+                    
+                    // Плавное изменение высоты
+                    if (prevValues[i]) {
+                        barHeight = prevValues[i] * 0.6 + barHeight * 0.4;
+                    }
+                    prevValues[i] = barHeight;
+                    
+                    // Толщина столбцов
                     const x = i * (canvasWidth / barCount);
-                    const w = (canvasWidth / barCount) * 0.8;
+                    const w = Math.max(6, (canvasWidth / barCount) * 1.6);
+                    
+                    // Пик ли это
+                    const isPeak = value > 180;
+                    
+                    // 🎨 РИСУЕМ СТОЛБЕЦ С ГРАДИЕНТОМ ОТ ЗЕЛЕНОГО ДО КРАСНОГО
+                    // Создаем вертикальный градиент для каждого столбца
+                    const gradient = ctx.createLinearGradient(x, canvasHeight - barHeight, x, canvasHeight);
+                    
+                    // Добавляем цвета по всей высоте столбца
+                    // Низ (0) = зеленый, середина = желтый/оранжевый, верх = красный
+                    gradient.addColorStop(0, getColorForHeight(0, false));      // Низ - зеленый
+                    gradient.addColorStop(0.15, getColorForHeight(0.15, false));
+                    gradient.addColorStop(0.3, getColorForHeight(0.3, false));   // Желто-зеленый
+                    gradient.addColorStop(0.45, getColorForHeight(0.45, false));  // Желтый
+                    gradient.addColorStop(0.6, getColorForHeight(0.6, false));    // Оранжевый
+                    gradient.addColorStop(0.75, getColorForHeight(0.75, false));
+                    gradient.addColorStop(0.9, getColorForHeight(0.9, false));
+                    gradient.addColorStop(1, getColorForHeight(1, isPeak));       // Верх - красный
+                    
                     ctx.fillStyle = gradient;
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = '#ff8c00';
-                    ctx.fillRect(x + 2, canvasHeight - barHeight, w - 1, barHeight);
+                    ctx.shadowBlur = isPeak ? 10 : 4;
+                    ctx.shadowColor = isPeak ? '#ff3300' : '#ff8c00';
+                    
+                    // Рисуем столбец
+                    ctx.fillRect(x + 1, canvasHeight - barHeight, w - 1, barHeight);
+                    
+                    // Добавляем свечение на вершине для пиков
+                    if (isPeak && barHeight > 15) {
+                        ctx.fillStyle = `rgba(255, 50, 50, 0.6)`;
+                        ctx.fillRect(x + 1, canvasHeight - barHeight - 2, w - 1, 4);
+                    }
                 }
                 ctx.shadowBlur = 0;
+                
                 animationId = requestAnimationFrame(draw);
             }
             draw();
@@ -315,21 +412,50 @@
             }
         }
         
+        // Демо-режим визуализации с градиентом
+        let demoAnimationId = null;
         function demoVisualization() {
-            if (!analyserNode && (!audioElement || !audioElement.src)) {
-                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-                const barCount = 64;
-                const time = Date.now() * 0.005;
-                for (let i = 0; i < barCount; i++) {
-                    let fake = 25 + Math.sin(time + i * 0.2) * 18;
-                    fake = Math.min(canvasHeight * 0.5, Math.max(6, fake));
-                    const x = i * (canvasWidth / barCount);
-                    const w = (canvasWidth / barCount) * 0.75;
-                    ctx.fillStyle = `rgba(255, 140, 0, ${0.6 + Math.sin(time + i) * 0.2})`;
-                    ctx.fillRect(x + 2, canvasHeight - fake, w, fake);
+            if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
+            
+            function drawDemo() {
+                if (analyserNode && audioElement && audioElement.src && isPlaying) {
+                    if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
+                    return;
                 }
-                requestAnimationFrame(() => demoVisualization());
+                
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                const barCount = 48;
+                const halfBarCount = barCount / 2;
+                const time = Date.now() * 0.005;
+                
+                for (let i = 0; i < barCount; i++) {
+                    let distanceFromCenter = Math.abs(i - halfBarCount) / halfBarCount;
+                    let boostFactor = Math.cos(distanceFromCenter * Math.PI / 2);
+                    
+                    let fake = 20 + Math.sin(time + i * 0.2) * 15;
+                    fake = fake * (0.3 + boostFactor * 0.9);
+                    fake = Math.min(canvasHeight * 0.6, Math.max(5, fake));
+                    
+                    const x = i * (canvasWidth / barCount);
+                    const w = Math.max(6, (canvasWidth / barCount) * 1.6);
+                    
+                    // Градиент для демо-режима
+                    const gradient = ctx.createLinearGradient(x, canvasHeight - fake, x, canvasHeight);
+                    gradient.addColorStop(0, '#00ff00');      // Зеленый низ
+                    gradient.addColorStop(0.3, '#ffff00');    // Желтый
+                    gradient.addColorStop(0.6, '#ff8800');    // Оранжевый
+                    gradient.addColorStop(1, '#ff0000');      // Красный верх
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = '#ff8c00';
+                    ctx.fillRect(x + 1, canvasHeight - fake, w - 1, fake);
+                }
+                ctx.shadowBlur = 0;
+                
+                demoAnimationId = requestAnimationFrame(drawDemo);
             }
+            drawDemo();
         }
         
         playStopBtn.addEventListener('click', togglePlayStop);
@@ -339,6 +465,8 @@
         window.addEventListener('beforeunload', () => {
             if (audioElement) audioElement.pause();
             if (audioContext) audioContext.close();
+            if (animationId) cancelAnimationFrame(animationId);
+            if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
         });
     </script>
 </body>
