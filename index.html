@@ -105,6 +105,83 @@
             font-weight: 500;
         }
 
+        /* Стили для заглушки офлайн */
+        .offline-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .offline-content {
+            padding: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .offline-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 1s ease infinite;
+        }
+
+        .offline-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .offline-message {
+            font-size: 16px;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 30px;
+            padding: 0 20px;
+        }
+
+        .retry-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .retry-btn:active {
+            transform: scale(0.95);
+        }
+
+        .offline-footer {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            right: 0;
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
         @media (max-width: 480px) {
             .mobile-container {
                 padding: 8px 16px 16px 16px;
@@ -117,10 +194,38 @@
             canvas {
                 height: 150px;
             }
+            .offline-title {
+                font-size: 24px;
+            }
+            .offline-icon {
+                font-size: 60px;
+            }
+        }
+
+        /* Скрываем контент при офлайн режиме */
+        body.offline-mode .mobile-container {
+            filter: blur(5px);
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
+    <!-- Заглушка офлайн -->
+    <div id="offlineOverlay" class="offline-overlay">
+        <div class="offline-content">
+            <div class="offline-icon">🌐</div>
+            <div class="offline-title">Нет подключения к интернету</div>
+            <div class="offline-message">
+                Пожалуйста, проверьте ваше интернет-соединение<br>
+                и нажмите кнопку ниже
+            </div>
+            <button class="retry-btn" onclick="checkAndReload()">🔄 Повторить</button>
+            <div class="offline-footer">
+                RADIO DJ BOGA | Интернет Радио
+            </div>
+        </div>
+    </div>
+
     <div class="mobile-container">
         <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
 
@@ -138,6 +243,78 @@
     </div>
 
     <script>
+        // ============================================================
+        // ПРОВЕРКА ИНТЕРНЕТ СОЕДИНЕНИЯ И ЗАГЛУШКА
+        // ============================================================
+        
+        let isOnline = navigator.onLine;
+        const offlineOverlay = document.getElementById('offlineOverlay');
+        
+        // Функция показа заглушки
+        function showOfflineOverlay() {
+            offlineOverlay.style.display = 'flex';
+            document.body.classList.add('offline-mode');
+            // Останавливаем воспроизведение если играло
+            if (isPlaying) {
+                stopPlayback();
+            }
+        }
+        
+        // Функция скрытия заглушки
+        function hideOfflineOverlay() {
+            offlineOverlay.style.display = 'none';
+            document.body.classList.remove('offline-mode');
+        }
+        
+        // Проверка соединения и перезагрузка
+        function checkAndReload() {
+            if (navigator.onLine) {
+                location.reload();
+            } else {
+                // Показываем временное сообщение
+                const retryBtn = document.querySelector('.retry-btn');
+                const originalText = retryBtn.textContent;
+                retryBtn.textContent = '❌ Всё ещё нет интернета';
+                retryBtn.style.background = '#ff6b6b';
+                setTimeout(() => {
+                    retryBtn.textContent = originalText;
+                    retryBtn.style.background = 'white';
+                }, 2000);
+            }
+        }
+        
+        // Обработчики изменения состояния сети
+        window.addEventListener('online', function() {
+            console.log('Интернет появился');
+            hideOfflineOverlay();
+            // Автоматически перезагружаем страницу через 1 секунду
+            setTimeout(() => {
+                if (navigator.onLine) {
+                    location.reload();
+                }
+            }, 1000);
+        });
+        
+        window.addEventListener('offline', function() {
+            console.log('Интернет пропал');
+            showOfflineOverlay();
+        });
+        
+        // Периодическая проверка соединения (каждые 3 секунды)
+        setInterval(function() {
+            if (!navigator.onLine && offlineOverlay.style.display !== 'flex') {
+                showOfflineOverlay();
+            } else if (navigator.onLine && offlineOverlay.style.display === 'flex') {
+                hideOfflineOverlay();
+                location.reload();
+            }
+        }, 3000);
+        
+        // Проверка при загрузке страницы
+        if (!navigator.onLine) {
+            showOfflineOverlay();
+        }
+        
         // ============================================================
         // НАСТРОЙКИ ВАШЕГО РАДИО ВЕЩАНИЯ
         // ============================================================
@@ -220,34 +397,24 @@
         }
         
         // Функция для получения цвета в зависимости от высоты столбца
-        // 0 = низ (зеленый), 1 = верх (темно-синий), через всю радугу
         function getColorForHeight(percent, isPeak = false) {
-            // percent: 0 = низ столбца, 1 = верх столбца
-            // Цвета радуги: зеленый -> желтый -> оранжевый -> красный -> фиолетовый -> темно-синий
             let hue;
             
             if (percent < 0.16) {
-                // Зеленый -> Желто-зеленый
                 hue = 120 - (percent / 0.16) * 60;
             } else if (percent < 0.33) {
-                // Желто-зеленый -> Желтый
                 hue = 60 - ((percent - 0.16) / 0.17) * 30;
             } else if (percent < 0.5) {
-                // Желтый -> Оранжевый
                 hue = 30 - ((percent - 0.33) / 0.17) * 15;
             } else if (percent < 0.66) {
-                // Оранжевый -> Красный
                 hue = 15 - ((percent - 0.5) / 0.16) * 15;
             } else if (percent < 0.83) {
-                // Красный -> Фиолетовый
                 hue = 0 - ((percent - 0.66) / 0.17) * 60;
                 if (hue < 0) hue += 360;
             } else {
-                // Фиолетовый -> Темно-синий
                 hue = 300 - ((percent - 0.83) / 0.17) * 60;
             }
             
-            // Корректируем, чтобы темно-синий был в самом верху
             if (percent > 0.95) {
                 hue = 240;
             }
@@ -255,7 +422,6 @@
             let sat = 85;
             let light = 50;
             
-            // Пики делаем ярче
             if (isPeak && percent > 0.8) {
                 light = 65;
                 sat = 95;
@@ -278,14 +444,12 @@
                 const barCount = analyserNode.frequencyBinCount;
                 const halfBarCount = barCount / 2;
                 
-                // Находим максимальное значение
                 let maxValue = 0;
                 for (let i = 0; i < barCount; i++) {
                     if (dataArray[i] > maxValue) maxValue = dataArray[i];
                 }
                 if (maxValue < 1) maxValue = 255;
                 
-                // Создаем массив для отображения "ёлочкой"
                 const displayBars = [];
                 for (let i = 0; i < barCount; i++) {
                     let distanceFromCenter = Math.abs(i - halfBarCount) / halfBarCount;
@@ -294,46 +458,36 @@
                     displayBars[i] = Math.min(255, boostedValue);
                 }
                 
-                // Рисуем столбцы
                 for (let i = 0; i < barCount; i++) {
                     let value = displayBars[i] || 0;
                     let percent = value / maxValue;
                     let barHeight = Math.max(4, percent * canvasHeight * 0.85);
                     
-                    // Плавное изменение высоты
                     if (prevValues[i]) {
                         barHeight = prevValues[i] * 0.6 + barHeight * 0.4;
                     }
                     prevValues[i] = barHeight;
                     
-                    // Толщина столбцов
                     const x = i * (canvasWidth / barCount);
                     const w = Math.max(6, (canvasWidth / barCount) * 1.6);
-                    
-                    // Пик ли это
                     const isPeak = value > 180;
                     
-                    // 🎨 РИСУЕМ СТОЛБЕЦ С ГРАДИЕНТОМ 
-                    // Снизу вверх: Зеленый -> Желтый -> Оранжевый -> Красный -> Фиолетовый -> Темно-синий
                     const gradient = ctx.createLinearGradient(x, canvasHeight - barHeight, x, canvasHeight);
                     
-                    // Добавляем цвета по всей высоте столбца
-                    gradient.addColorStop(0, getColorForHeight(0, false));           // Низ - зеленый
-                    gradient.addColorStop(0.16, getColorForHeight(0.16, false));     // Желто-зеленый
-                    gradient.addColorStop(0.33, getColorForHeight(0.33, false));     // Желтый
-                    gradient.addColorStop(0.5, getColorForHeight(0.5, false));       // Оранжевый
-                    gradient.addColorStop(0.66, getColorForHeight(0.66, false));     // Красный
-                    gradient.addColorStop(0.83, getColorForHeight(0.83, false));     // Фиолетовый
-                    gradient.addColorStop(1, getColorForHeight(1, isPeak));          // Верх - темно-синий
+                    gradient.addColorStop(0, getColorForHeight(0, false));
+                    gradient.addColorStop(0.16, getColorForHeight(0.16, false));
+                    gradient.addColorStop(0.33, getColorForHeight(0.33, false));
+                    gradient.addColorStop(0.5, getColorForHeight(0.5, false));
+                    gradient.addColorStop(0.66, getColorForHeight(0.66, false));
+                    gradient.addColorStop(0.83, getColorForHeight(0.83, false));
+                    gradient.addColorStop(1, getColorForHeight(1, isPeak));
                     
                     ctx.fillStyle = gradient;
                     ctx.shadowBlur = isPeak ? 10 : 4;
                     ctx.shadowColor = isPeak ? '#ff3300' : '#ff8c00';
                     
-                    // Рисуем столбец
                     ctx.fillRect(x + 1, canvasHeight - barHeight, w - 1, barHeight);
                     
-                    // Добавляем свечение на вершине для пиков
                     if (isPeak && barHeight > 15) {
                         ctx.fillStyle = `rgba(100, 100, 255, 0.6)`;
                         ctx.fillRect(x + 1, canvasHeight - barHeight - 2, w - 1, 4);
@@ -347,6 +501,13 @@
         }
         
         async function startPlayback() {
+            // Проверяем интернет перед воспроизведением
+            if (!navigator.onLine) {
+                updateStatus('Нет интернет соединения', true);
+                showOfflineOverlay();
+                return;
+            }
+            
             try {
                 updateStatus('Подключение к потоку...');
                 
@@ -417,7 +578,7 @@
             }
         }
         
-        // Демо-режим визуализации с градиентом
+        // Демо-режим визуализации
         let demoAnimationId = null;
         function demoVisualization() {
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
@@ -444,13 +605,12 @@
                     const x = i * (canvasWidth / barCount);
                     const w = Math.max(6, (canvasWidth / barCount) * 1.6);
                     
-                    // Градиент для демо-режима
                     const gradient = ctx.createLinearGradient(x, canvasHeight - fake, x, canvasHeight);
-                    gradient.addColorStop(0, '#00ff00');      // Зеленый низ
-                    gradient.addColorStop(0.25, '#ffff00');   // Желтый
-                    gradient.addColorStop(0.5, '#ff8800');    // Оранжевый
-                    gradient.addColorStop(0.75, '#ff0000');   // Красный
-                    gradient.addColorStop(1, '#0000aa');      // Темно-синий верх
+                    gradient.addColorStop(0, '#00ff00');
+                    gradient.addColorStop(0.25, '#ffff00');
+                    gradient.addColorStop(0.5, '#ff8800');
+                    gradient.addColorStop(0.75, '#ff0000');
+                    gradient.addColorStop(1, '#0000aa');
                     
                     ctx.fillStyle = gradient;
                     ctx.shadowBlur = 4;
