@@ -207,6 +207,17 @@
             filter: blur(5px);
             pointer-events: none;
         }
+        
+        /* Анимация переподключения */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        .reconnecting {
+            animation: pulse 1s infinite;
+        }
     </style>
 </head>
 <body>
@@ -244,18 +255,27 @@
 
     <script>
         // ============================================================
-        // ПРОВЕРКА ИНТЕРНЕТ СОЕДИНЕНИЯ И ЗАГЛУШКА
+        // АВТОМАТИЧЕСКОЕ ПЕРЕПОДКЛЮЧЕНИЕ
         // ============================================================
         
         let isOnline = navigator.onLine;
         const offlineOverlay = document.getElementById('offlineOverlay');
         
+        // Переменные для автопереподключения
+        let autoReconnectEnabled = true;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 10;
+        let reconnectTimeout = null;
+        let healthCheckInterval = null;
+        let wasPlayingBeforeOffline = false;
+        
         // Функция показа заглушки
         function showOfflineOverlay() {
             offlineOverlay.style.display = 'flex';
             document.body.classList.add('offline-mode');
-            // Останавливаем воспроизведение если играло
+            // Запоминаем что радио играло
             if (isPlaying) {
+                wasPlayingBeforeOffline = true;
                 stopPlayback();
             }
         }
@@ -266,12 +286,59 @@
             document.body.classList.remove('offline-mode');
         }
         
+        // Автоматическое переподключение
+        function attemptReconnect() {
+            if (!autoReconnectEnabled) return;
+            if (!wasPlayingBeforeOffline && !isPlaying) return;
+            
+            reconnectAttempts++;
+            console.log(`🔄 Попытка переподключения ${reconnectAttempts}/${maxReconnectAttempts}`);
+            
+            updateStatus(`🔄 Переподключение... (${reconnectAttempts}/${maxReconnectAttempts})`);
+            
+            // Показываем анимацию на кнопке
+            const btn = document.getElementById('playStopBtn');
+            btn.classList.add('reconnecting');
+            
+            setTimeout(async () => {
+                try {
+                    if (navigator.onLine) {
+                        // Интернет есть - перезапускаем воспроизведение
+                        if (wasPlayingBeforeOffline || reconnectAttempts > 0) {
+                            await startPlayback();
+                            if (isPlaying) {
+                                console.log('✅ Переподключение успешно!');
+                                updateStatus('▶ В эфире');
+                                reconnectAttempts = 0;
+                                wasPlayingBeforeOffline = false;
+                            }
+                        }
+                    } else {
+                        // Интернета нет - ждем
+                        console.log('❌ Интернет всё ещё отсутствует');
+                        if (reconnectAttempts < maxReconnectAttempts) {
+                            setTimeout(attemptReconnect, 5000);
+                        } else {
+                            updateStatus('❌ Не удалось переподключиться', true);
+                            reconnectAttempts = 0;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Reconnect error:', e);
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        setTimeout(attemptReconnect, 5000);
+                    }
+                } finally {
+                    btn.classList.remove('reconnecting');
+                }
+            }, 2000);
+        }
+        
         // Проверка соединения и перезагрузка
         function checkAndReload() {
             if (navigator.onLine) {
                 location.reload();
             } else {
-                // Показываем временное сообщение
                 const retryBtn = document.querySelector('.retry-btn');
                 const originalText = retryBtn.textContent;
                 retryBtn.textContent = '❌ Всё ещё нет интернета';
@@ -283,32 +350,101 @@
             }
         }
         
+        // Health check - проверяет здоровье потока
+        function startHealthCheck() {
+            if (healthCheckInterval) clearInterval(healthCheckInterval);
+            
+            healthCheckInterval = setInterval(() => {
+                // Проверяем, играет ли поток
+                if (isPlaying && audioElement) {
+                    // Проверяем буферизацию
+                    if (audioElement.buffered.length > 0) {
+                        const bufferedEnd = audioElement.buffered.end(audioElement.buffered.length - 1);
+                        const currentTime = audioElement.currentTime;
+                        const bufferLeft = bufferedEnd - currentTime;
+                        
+                        // Если буфер почти пуст и интернет есть - возможно проблема
+                        if (bufferLeft < 1 && navigator.onLine && !audioElement.paused) {
+                            console.log('⚠️ Низкий буфер, возможно поток остановился');
+                            updateStatus('⚠️ Буферизация...');
+                            
+                            // Пробуем восстановить
+                            setTimeout(() => {
+                                if (isPlaying && audioElement && audioElement.paused === false && bufferLeft < 0.5) {
+                                    console.log('🔄 Восстановление потока...');
+                                    audioElement.play().catch(e => console.log('Play error:', e));
+                                }
+                            }, 1000);
+                        }
+                    }
+                    
+                    // Проверяем визуализатор (если нет звука > 5 секунд)
+                    if (analyserNode) {
+                        const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
+                        analyserNode.getByteFrequencyData(dataArray);
+                        let sum = 0;
+                        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                        const avg = sum / dataArray.length;
+                        
+                        // Если нет звука более 10 секунд - переподключаемся
+                        if (avg < 5 && !window._noAudioWarningShown) {
+                            window._noAudioWarningShown = true;
+                            window._noAudioStartTime = Date.now();
+                        } else if (avg > 5) {
+                            window._noAudioWarningShown = false;
+                        }
+                        
+                        if (window._noAudioWarningShown && (Date.now() - window._noAudioStartTime) > 10000) {
+                            console.log('⚠️ Нет звука более 10 секунд - переподключение');
+                            window._noAudioWarningShown = false;
+                            if (navigator.onLine) {
+                                location.reload();
+                            }
+                        }
+                    }
+                }
+            }, 5000);
+        }
+        
         // Обработчики изменения состояния сети
         window.addEventListener('online', function() {
-            console.log('Интернет появился');
+            console.log('🌐 Интернет появился');
             hideOfflineOverlay();
-            // Автоматически перезагружаем страницу через 1 секунду
-            setTimeout(() => {
-                if (navigator.onLine) {
-                    location.reload();
-                }
-            }, 1000);
+            
+            // Автоматическое переподключение
+            if (wasPlayingBeforeOffline || (reconnectAttempts > 0 && reconnectAttempts < maxReconnectAttempts)) {
+                updateStatus('🔄 Интернет восстановлен, переподключаемся...');
+                setTimeout(attemptReconnect, 1000);
+            } else if (isPlaying === false && wasPlayingBeforeOffline === false) {
+                // Не переподключаемся автоматически, если пользователь сам остановил
+                updateStatus('✅ Интернет восстановлен');
+            }
         });
         
         window.addEventListener('offline', function() {
-            console.log('Интернет пропал');
+            console.log('📡 Интернет пропал');
             showOfflineOverlay();
+            
+            // Запускаем автопереподключение
+            if (isPlaying || wasPlayingBeforeOffline) {
+                attemptReconnect();
+            }
         });
         
-        // Периодическая проверка соединения (каждые 3 секунды)
+        // Периодическая проверка соединения
         setInterval(function() {
             if (!navigator.onLine && offlineOverlay.style.display !== 'flex') {
                 showOfflineOverlay();
+                if (isPlaying) {
+                    attemptReconnect();
+                }
             } else if (navigator.onLine && offlineOverlay.style.display === 'flex') {
                 hideOfflineOverlay();
-                location.reload();
+                if (wasPlayingBeforeOffline) {
+                    attemptReconnect();
+                }
             }
-        }, 3000);
+        }, 5000);
         
         // Проверка при загрузке страницы
         if (!navigator.onLine) {
@@ -505,6 +641,7 @@
             if (!navigator.onLine) {
                 updateStatus('Нет интернет соединения', true);
                 showOfflineOverlay();
+                wasPlayingBeforeOffline = true;
                 return;
             }
             
@@ -550,6 +687,11 @@
                 isPlaying = true;
                 playStopBtn.innerHTML = '⏹ STOP';
                 updateStatus('▶ В эфире');
+                
+                // Сбрасываем счетчик переподключений
+                reconnectAttempts = 0;
+                wasPlayingBeforeOffline = false;
+                
             } catch (err) {
                 console.error(err);
                 updateStatus('Ошибка: ' + err.message, true);
@@ -560,6 +702,11 @@
                     audioElement.src = '';
                     audioElement = null;
                 }
+                
+                // Пробуем переподключиться при ошибке
+                if (navigator.onLine && reconnectAttempts < maxReconnectAttempts) {
+                    setTimeout(attemptReconnect, 3000);
+                }
             }
         }
         
@@ -568,6 +715,8 @@
             isPlaying = false;
             playStopBtn.innerHTML = '▶ PLAY';
             updateStatus('Остановлено');
+            wasPlayingBeforeOffline = false;
+            reconnectAttempts = 0;
         }
         
         async function togglePlayStop() {
@@ -628,11 +777,16 @@
         demoVisualization();
         updateStatus('Нажмите PLAY');
         
+        // Запускаем health check
+        startHealthCheck();
+        
         window.addEventListener('beforeunload', () => {
             if (audioElement) audioElement.pause();
             if (audioContext) audioContext.close();
             if (animationId) cancelAnimationFrame(animationId);
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
+            if (healthCheckInterval) clearInterval(healthCheckInterval);
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
         });
     </script>
 </body>
