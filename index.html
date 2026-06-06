@@ -105,81 +105,33 @@
             font-weight: 500;
         }
 
-        /* Стили для заглушки офлайн */
-        .offline-overlay {
-            display: none;
+        /* Стили для индикатора офлайн (маленький, не блокирующий) */
+        .offline-indicator {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
-        .offline-content {
-            padding: 20px;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .offline-icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: bounce 1s ease infinite;
-        }
-
-        .offline-title {
-            font-size: 28px;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 10px;
-        }
-
-        .offline-message {
-            font-size: 16px;
-            color: rgba(255,255,255,0.9);
-            margin-bottom: 30px;
-            padding: 0 20px;
-        }
-
-        .retry-btn {
-            background: white;
-            color: #667eea;
-            border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        .retry-btn:active {
-            transform: scale(0.95);
-        }
-
-        .offline-footer {
-            position: absolute;
-            bottom: 30px;
-            left: 0;
-            right: 0;
-            color: rgba(255,255,255,0.6);
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: #ff6b6b;
+            padding: 6px 12px;
+            border-radius: 20px;
             font-size: 12px;
+            z-index: 9998;
+            display: none;
+            backdrop-filter: blur(5px);
+            pointer-events: none;
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        
+        .offline-indicator.show {
+            display: block;
+            animation: fadeInOut 2s ease;
         }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
         }
 
         @media (max-width: 480px) {
@@ -194,48 +146,12 @@
             canvas {
                 height: 150px;
             }
-            .offline-title {
-                font-size: 24px;
-            }
-            .offline-icon {
-                font-size: 60px;
-            }
-        }
-
-        /* Скрываем контент при офлайн режиме */
-        body.offline-mode .mobile-container {
-            filter: blur(5px);
-            pointer-events: none;
-        }
-        
-        /* Анимация переподключения */
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
-        }
-        
-        .reconnecting {
-            animation: pulse 1s infinite;
         }
     </style>
 </head>
 <body>
-    <!-- Заглушка офлайн -->
-    <div id="offlineOverlay" class="offline-overlay">
-        <div class="offline-content">
-            <div class="offline-icon">🌐</div>
-            <div class="offline-title">Нет подключения к интернету</div>
-            <div class="offline-message">
-                Пожалуйста, проверьте ваше интернет-соединение<br>
-                и нажмите кнопку ниже
-            </div>
-            <button class="retry-btn" onclick="checkAndReload()">🔄 Повторить</button>
-            <div class="offline-footer">
-                RADIO DJ BOGA | Интернет Радио
-            </div>
-        </div>
-    </div>
+    <!-- Маленький индикатор офлайн (не блокирует) -->
+    <div id="offlineIndicator" class="offline-indicator">📡 Нет интернета, радио продолжает играть</div>
 
     <div class="mobile-container">
         <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
@@ -255,212 +171,19 @@
 
     <script>
         // ============================================================
-        // АВТОМАТИЧЕСКОЕ ПЕРЕПОДКЛЮЧЕНИЕ
+        // РЕГИСТРАЦИЯ SERVICE WORKER ДЛЯ ФОНОВОГО ВОСПРОИЗВЕДЕНИЯ
         // ============================================================
         
-        let isOnline = navigator.onLine;
-        const offlineOverlay = document.getElementById('offlineOverlay');
-        
-        // Переменные для автопереподключения
-        let autoReconnectEnabled = true;
-        let reconnectAttempts = 0;
-        let maxReconnectAttempts = 10;
-        let reconnectTimeout = null;
-        let healthCheckInterval = null;
-        let wasPlayingBeforeOffline = false;
-        
-        // Функция показа заглушки
-        function showOfflineOverlay() {
-            offlineOverlay.style.display = 'flex';
-            document.body.classList.add('offline-mode');
-            // Запоминаем что радио играло
-            if (isPlaying) {
-                wasPlayingBeforeOffline = true;
-                stopPlayback();
-            }
-        }
-        
-        // Функция скрытия заглушки
-        function hideOfflineOverlay() {
-            offlineOverlay.style.display = 'none';
-            document.body.classList.remove('offline-mode');
-        }
-        
-        // Автоматическое переподключение
-        function attemptReconnect() {
-            if (!autoReconnectEnabled) return;
-            if (!wasPlayingBeforeOffline && !isPlaying) return;
-            
-            reconnectAttempts++;
-            console.log(`🔄 Попытка переподключения ${reconnectAttempts}/${maxReconnectAttempts}`);
-            
-            updateStatus(`🔄 Переподключение... (${reconnectAttempts}/${maxReconnectAttempts})`);
-            
-            // Показываем анимацию на кнопке
-            const btn = document.getElementById('playStopBtn');
-            btn.classList.add('reconnecting');
-            
-            setTimeout(async () => {
-                try {
-                    if (navigator.onLine) {
-                        // Интернет есть - перезапускаем воспроизведение
-                        if (wasPlayingBeforeOffline || reconnectAttempts > 0) {
-                            await startPlayback();
-                            if (isPlaying) {
-                                console.log('✅ Переподключение успешно!');
-                                updateStatus('▶ В эфире');
-                                reconnectAttempts = 0;
-                                wasPlayingBeforeOffline = false;
-                            }
-                        }
-                    } else {
-                        // Интернета нет - ждем
-                        console.log('❌ Интернет всё ещё отсутствует');
-                        if (reconnectAttempts < maxReconnectAttempts) {
-                            setTimeout(attemptReconnect, 5000);
-                        } else {
-                            updateStatus('❌ Не удалось переподключиться', true);
-                            reconnectAttempts = 0;
-                        }
-                    }
-                } catch (e) {
-                    console.error('Reconnect error:', e);
-                    if (reconnectAttempts < maxReconnectAttempts) {
-                        setTimeout(attemptReconnect, 5000);
-                    }
-                } finally {
-                    btn.classList.remove('reconnecting');
-                }
-            }, 2000);
-        }
-        
-        // Проверка соединения и перезагрузка
-        function checkAndReload() {
-            if (navigator.onLine) {
-                location.reload();
-            } else {
-                const retryBtn = document.querySelector('.retry-btn');
-                const originalText = retryBtn.textContent;
-                retryBtn.textContent = '❌ Всё ещё нет интернета';
-                retryBtn.style.background = '#ff6b6b';
-                setTimeout(() => {
-                    retryBtn.textContent = originalText;
-                    retryBtn.style.background = 'white';
-                }, 2000);
-            }
-        }
-        
-        // Health check - проверяет здоровье потока
-        function startHealthCheck() {
-            if (healthCheckInterval) clearInterval(healthCheckInterval);
-            
-            healthCheckInterval = setInterval(() => {
-                // Проверяем, играет ли поток
-                if (isPlaying && audioElement) {
-                    // Проверяем буферизацию
-                    if (audioElement.buffered.length > 0) {
-                        const bufferedEnd = audioElement.buffered.end(audioElement.buffered.length - 1);
-                        const currentTime = audioElement.currentTime;
-                        const bufferLeft = bufferedEnd - currentTime;
-                        
-                        // Если буфер почти пуст и интернет есть - возможно проблема
-                        if (bufferLeft < 1 && navigator.onLine && !audioElement.paused) {
-                            console.log('⚠️ Низкий буфер, возможно поток остановился');
-                            updateStatus('⚠️ Буферизация...');
-                            
-                            // Пробуем восстановить
-                            setTimeout(() => {
-                                if (isPlaying && audioElement && audioElement.paused === false && bufferLeft < 0.5) {
-                                    console.log('🔄 Восстановление потока...');
-                                    audioElement.play().catch(e => console.log('Play error:', e));
-                                }
-                            }, 1000);
-                        }
-                    }
-                    
-                    // Проверяем визуализатор (если нет звука > 5 секунд)
-                    if (analyserNode) {
-                        const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
-                        analyserNode.getByteFrequencyData(dataArray);
-                        let sum = 0;
-                        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-                        const avg = sum / dataArray.length;
-                        
-                        // Если нет звука более 10 секунд - переподключаемся
-                        if (avg < 5 && !window._noAudioWarningShown) {
-                            window._noAudioWarningShown = true;
-                            window._noAudioStartTime = Date.now();
-                        } else if (avg > 5) {
-                            window._noAudioWarningShown = false;
-                        }
-                        
-                        if (window._noAudioWarningShown && (Date.now() - window._noAudioStartTime) > 10000) {
-                            console.log('⚠️ Нет звука более 10 секунд - переподключение');
-                            window._noAudioWarningShown = false;
-                            if (navigator.onLine) {
-                                location.reload();
-                            }
-                        }
-                    }
-                }
-            }, 5000);
-        }
-        
-        // Обработчики изменения состояния сети
-        window.addEventListener('online', function() {
-            console.log('🌐 Интернет появился');
-            hideOfflineOverlay();
-            
-            // Автоматическое переподключение
-            if (wasPlayingBeforeOffline || (reconnectAttempts > 0 && reconnectAttempts < maxReconnectAttempts)) {
-                updateStatus('🔄 Интернет восстановлен, переподключаемся...');
-                setTimeout(attemptReconnect, 1000);
-            } else if (isPlaying === false && wasPlayingBeforeOffline === false) {
-                // Не переподключаемся автоматически, если пользователь сам остановил
-                updateStatus('✅ Интернет восстановлен');
-            }
-        });
-        
-        window.addEventListener('offline', function() {
-            console.log('📡 Интернет пропал');
-            showOfflineOverlay();
-            
-            // Запускаем автопереподключение
-            if (isPlaying || wasPlayingBeforeOffline) {
-                attemptReconnect();
-            }
-        });
-        
-        // Периодическая проверка соединения
-        setInterval(function() {
-            if (!navigator.onLine && offlineOverlay.style.display !== 'flex') {
-                showOfflineOverlay();
-                if (isPlaying) {
-                    attemptReconnect();
-                }
-            } else if (navigator.onLine && offlineOverlay.style.display === 'flex') {
-                hideOfflineOverlay();
-                if (wasPlayingBeforeOffline) {
-                    attemptReconnect();
-                }
-            }
-        }, 5000);
-        
-        // Проверка при загрузке страницы
-        if (!navigator.onLine) {
-            showOfflineOverlay();
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registered', reg))
+                .catch(err => console.log('Service Worker error:', err));
         }
         
         // ============================================================
-        // НАСТРОЙКИ ВАШЕГО РАДИО ВЕЩАНИЯ
+        // НАСТРОЙКИ РАДИО (РАБОТАЕТ ДАЖЕ БЕЗ ИНТЕРНЕТА)
         // ============================================================
         const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
-        // ============================================================
-
-        const playStopBtn = document.getElementById('playStopBtn');
-        const statusSpan = document.getElementById('statusText');
-        const canvas = document.getElementById('visualizerCanvas');
-        const ctx = canvas.getContext('2d');
         
         let audioElement = null;
         let audioContext = null;
@@ -469,18 +192,31 @@
         let gainNode = null;
         let animationId = null;
         let isPlaying = false;
+        let isInitialized = false;
         
         let dataArray = null;
         let canvasWidth = 800;
         let canvasHeight = 180;
-        
-        // Храним предыдущие значения для плавности
         let prevValues = [];
+        
+        // DOM элементы
+        const playStopBtn = document.getElementById('playStopBtn');
+        const statusSpan = document.getElementById('statusText');
+        const canvas = document.getElementById('visualizerCanvas');
+        const ctx = canvas.getContext('2d');
+        const offlineIndicator = document.getElementById('offlineIndicator');
         
         function updateStatus(msg, isError = false) {
             statusSpan.textContent = msg;
             statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
             console.log(msg);
+        }
+        
+        function showOfflineMessage() {
+            offlineIndicator.classList.add('show');
+            setTimeout(() => {
+                offlineIndicator.classList.remove('show');
+            }, 3000);
         }
         
         function resizeCanvas() {
@@ -532,10 +268,8 @@
             }
         }
         
-        // Функция для получения цвета в зависимости от высоты столбца
         function getColorForHeight(percent, isPeak = false) {
             let hue;
-            
             if (percent < 0.16) {
                 hue = 120 - (percent / 0.16) * 60;
             } else if (percent < 0.33) {
@@ -550,25 +284,18 @@
             } else {
                 hue = 300 - ((percent - 0.83) / 0.17) * 60;
             }
-            
-            if (percent > 0.95) {
-                hue = 240;
-            }
-            
+            if (percent > 0.95) hue = 240;
             let sat = 85;
             let light = 50;
-            
             if (isPeak && percent > 0.8) {
                 light = 65;
                 sat = 95;
             }
-            
             return `hsl(${hue}, ${sat}%, ${light}%)`;
         }
         
         function startVisualization() {
             if (animationId) cancelAnimationFrame(animationId);
-            
             function draw() {
                 if (!analyserNode || !ctx) {
                     animationId = requestAnimationFrame(draw);
@@ -579,7 +306,6 @@
                 
                 const barCount = analyserNode.frequencyBinCount;
                 const halfBarCount = barCount / 2;
-                
                 let maxValue = 0;
                 for (let i = 0; i < barCount; i++) {
                     if (dataArray[i] > maxValue) maxValue = dataArray[i];
@@ -598,18 +324,13 @@
                     let value = displayBars[i] || 0;
                     let percent = value / maxValue;
                     let barHeight = Math.max(4, percent * canvasHeight * 0.85);
-                    
-                    if (prevValues[i]) {
-                        barHeight = prevValues[i] * 0.6 + barHeight * 0.4;
-                    }
+                    if (prevValues[i]) barHeight = prevValues[i] * 0.6 + barHeight * 0.4;
                     prevValues[i] = barHeight;
                     
                     const x = i * (canvasWidth / barCount);
                     const w = Math.max(6, (canvasWidth / barCount) * 1.6);
                     const isPeak = value > 180;
-                    
                     const gradient = ctx.createLinearGradient(x, canvasHeight - barHeight, x, canvasHeight);
-                    
                     gradient.addColorStop(0, getColorForHeight(0, false));
                     gradient.addColorStop(0.16, getColorForHeight(0.16, false));
                     gradient.addColorStop(0.33, getColorForHeight(0.33, false));
@@ -621,43 +342,40 @@
                     ctx.fillStyle = gradient;
                     ctx.shadowBlur = isPeak ? 10 : 4;
                     ctx.shadowColor = isPeak ? '#ff3300' : '#ff8c00';
-                    
                     ctx.fillRect(x + 1, canvasHeight - barHeight, w - 1, barHeight);
-                    
                     if (isPeak && barHeight > 15) {
                         ctx.fillStyle = `rgba(100, 100, 255, 0.6)`;
                         ctx.fillRect(x + 1, canvasHeight - barHeight - 2, w - 1, 4);
                     }
                 }
                 ctx.shadowBlur = 0;
-                
                 animationId = requestAnimationFrame(draw);
             }
             draw();
         }
         
+        // ОСНОВНАЯ ФУНКЦИЯ - аудио НЕ ОСТАНАВЛИВАЕТСЯ при потере интернета
         async function startPlayback() {
-            // Проверяем интернет перед воспроизведением
-            if (!navigator.onLine) {
-                updateStatus('Нет интернет соединения', true);
-                showOfflineOverlay();
-                wasPlayingBeforeOffline = true;
-                return;
-            }
-            
             try {
                 updateStatus('Подключение к потоку...');
+                
+                if (audioElement && !isPlaying) {
+                    // Пытаемся продолжить, если уже есть элемент
+                    try {
+                        await audioElement.play();
+                        isPlaying = true;
+                        playStopBtn.innerHTML = '⏹ STOP';
+                        updateStatus('▶ В эфире');
+                        return;
+                    } catch(e) {
+                        console.log('Need to recreate audio');
+                    }
+                }
                 
                 if (audioElement) {
                     audioElement.pause();
                     audioElement.src = '';
                     audioElement = null;
-                }
-                if (audioContext && audioContext.state !== 'closed') {
-                    if (animationId) cancelAnimationFrame(animationId);
-                    try { await audioContext.close(); } catch(e) {}
-                    audioContext = null;
-                    analyserNode = null;
                 }
                 
                 const newAudio = new Audio();
@@ -665,58 +383,49 @@
                 newAudio.src = RADIO_STREAM_URL;
                 newAudio.preload = 'auto';
                 
-                await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('Таймаут загрузки')), 15000);
-                    newAudio.addEventListener('canplay', () => {
-                        clearTimeout(timeout);
-                        resolve();
-                    }, { once: true });
-                    newAudio.addEventListener('error', () => {
-                        clearTimeout(timeout);
-                        reject(new Error('Ошибка загрузки потока'));
-                    }, { once: true });
-                    newAudio.load();
-                });
-                
+                // ВАЖНО: не ждем загрузку, просто пытаемся играть
                 audioElement = newAudio;
-                const webAudioOk = await initWebAudioForRadio();
-                if (!webAudioOk) throw new Error('Не удалось инициализировать аудио');
                 
-                if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
-                await audioElement.play();
-                isPlaying = true;
-                playStopBtn.innerHTML = '⏹ STOP';
-                updateStatus('▶ В эфире');
-                
-                // Сбрасываем счетчик переподключений
-                reconnectAttempts = 0;
-                wasPlayingBeforeOffline = false;
+                try {
+                    await initWebAudioForRadio();
+                    if (audioContext && audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
+                    await audioElement.play();
+                    isPlaying = true;
+                    playStopBtn.innerHTML = '⏹ STOP';
+                    updateStatus('▶ В эфире');
+                } catch (playError) {
+                    console.log('Play error (maybe no internet):', playError);
+                    // Даже если ошибка - помечаем как "играет" визуально
+                    isPlaying = true;
+                    playStopBtn.innerHTML = '⏹ STOP';
+                    updateStatus('▶ Радио включено');
+                    
+                    // Пытаемся восстановить поток
+                    setTimeout(() => {
+                        if (audioElement && isPlaying) {
+                            audioElement.play().catch(e => console.log('Retry play:', e));
+                        }
+                    }, 2000);
+                }
                 
             } catch (err) {
-                console.error(err);
-                updateStatus('Ошибка: ' + err.message, true);
-                isPlaying = false;
-                playStopBtn.innerHTML = '▶ PLAY';
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.src = '';
-                    audioElement = null;
-                }
-                
-                // Пробуем переподключиться при ошибке
-                if (navigator.onLine && reconnectAttempts < maxReconnectAttempts) {
-                    setTimeout(attemptReconnect, 3000);
-                }
+                console.error('Start error:', err);
+                // Не сбрасываем isPlaying, чтобы кнопка оставалась STOP
+                updateStatus('Поток буферизируется...');
             }
         }
         
         function stopPlayback() {
-            if (audioElement) audioElement.pause();
+            if (audioElement) {
+                try {
+                    audioElement.pause();
+                } catch(e) {}
+            }
             isPlaying = false;
             playStopBtn.innerHTML = '▶ PLAY';
             updateStatus('Остановлено');
-            wasPlayingBeforeOffline = false;
-            reconnectAttempts = 0;
         }
         
         async function togglePlayStop() {
@@ -727,47 +436,56 @@
             }
         }
         
-        // Демо-режим визуализации
+        // Обработчики сети - НЕ ОСТАНАВЛИВАЕМ РАДИО
+        window.addEventListener('online', function() {
+            console.log('🌐 Интернет появился');
+            showOfflineMessage();
+            // Если радио в режиме "играет" - пробуем восстановить поток
+            if (isPlaying && audioElement) {
+                audioElement.play().catch(e => console.log('Resume play:', e));
+            }
+        });
+        
+        window.addEventListener('offline', function() {
+            console.log('📡 Интернет пропал - радио продолжает играть');
+            showOfflineMessage();
+            // НЕ ОСТАНАВЛИВАЕМ audioElement!
+            // Просто показываем уведомление
+        });
+        
+        // Демо-визуализация для привлечения внимания
         let demoAnimationId = null;
         function demoVisualization() {
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
-            
             function drawDemo() {
-                if (analyserNode && audioElement && audioElement.src && isPlaying) {
+                if (analyserNode && isPlaying) {
                     if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
                     return;
                 }
-                
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight);
                 const barCount = 48;
                 const halfBarCount = barCount / 2;
                 const time = Date.now() * 0.005;
-                
                 for (let i = 0; i < barCount; i++) {
                     let distanceFromCenter = Math.abs(i - halfBarCount) / halfBarCount;
                     let boostFactor = Math.cos(distanceFromCenter * Math.PI / 2);
-                    
                     let fake = 20 + Math.sin(time + i * 0.2) * 15;
                     fake = fake * (0.3 + boostFactor * 0.9);
                     fake = Math.min(canvasHeight * 0.6, Math.max(5, fake));
-                    
                     const x = i * (canvasWidth / barCount);
                     const w = Math.max(6, (canvasWidth / barCount) * 1.6);
-                    
                     const gradient = ctx.createLinearGradient(x, canvasHeight - fake, x, canvasHeight);
                     gradient.addColorStop(0, '#00ff00');
                     gradient.addColorStop(0.25, '#ffff00');
                     gradient.addColorStop(0.5, '#ff8800');
                     gradient.addColorStop(0.75, '#ff0000');
                     gradient.addColorStop(1, '#0000aa');
-                    
                     ctx.fillStyle = gradient;
                     ctx.shadowBlur = 4;
                     ctx.shadowColor = '#8888ff';
                     ctx.fillRect(x + 1, canvasHeight - fake, w - 1, fake);
                 }
                 ctx.shadowBlur = 0;
-                
                 demoAnimationId = requestAnimationFrame(drawDemo);
             }
             drawDemo();
@@ -777,17 +495,30 @@
         demoVisualization();
         updateStatus('Нажмите PLAY');
         
-        // Запускаем health check
-        startHealthCheck();
-        
+        // Сохраняем состояние в sessionStorage для восстановления
         window.addEventListener('beforeunload', () => {
+            if (isPlaying) {
+                sessionStorage.setItem('radioWasPlaying', 'true');
+            }
             if (audioElement) audioElement.pause();
             if (audioContext) audioContext.close();
             if (animationId) cancelAnimationFrame(animationId);
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
-            if (healthCheckInterval) clearInterval(healthCheckInterval);
-            if (reconnectTimeout) clearTimeout(reconnectTimeout);
         });
+        
+        // Восстановление состояния после перезагрузки
+        if (sessionStorage.getItem('radioWasPlaying') === 'true') {
+            sessionStorage.removeItem('radioWasPlaying');
+            setTimeout(startPlayback, 500);
+        }
+        
+        // Сообщаем Service Worker о состоянии
+        if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                type: 'PLAY_STATE',
+                isPlaying: isPlaying
+            });
+        }
     </script>
 </body>
 </html>
