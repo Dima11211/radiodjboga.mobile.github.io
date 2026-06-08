@@ -57,7 +57,7 @@
         .button-container {
             display: flex;
             justify-content: center;
-            padding: 4px 0 4px 0;
+            padding: 20px 0 20px 0;
             background: #03fff7;
             border-bottom: 2px solid rgba(255, 255, 255, 0.5);
         }
@@ -65,24 +65,28 @@
         .play-stop-btn {
             background: linear-gradient(135deg, #8b0000, #5a0000);
             border: none;
-            width: 180px;
-            padding: 10px 0;
+            width: 200px;
+            padding: 12px 0;
             border-radius: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             color: white;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 6px 16px rgba(139, 0, 0, 0.4);
-            gap: 10px;
+            box-shadow: 0 8px 20px rgba(139, 0, 0, 0.4);
+            gap: 12px;
             letter-spacing: 1px;
         }
 
         .play-stop-btn:active {
-            transform: scale(0.97);
+            transform: scale(0.96);
+        }
+
+        .play-stop-btn.playing {
+            background: linear-gradient(135deg, #2c2c2c, #1a1a1a);
         }
 
         .visualizer-container {
@@ -101,11 +105,11 @@
         .status-text {
             text-align: center;
             margin-top: 15px;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 500;
         }
 
-        /* Стили для индикатора офлайн (маленький, не блокирующий) */
+        /* Стили для индикатора офлайн */
         .offline-indicator {
             position: fixed;
             bottom: 20px;
@@ -141,7 +145,7 @@
             .play-stop-btn {
                 width: 160px;
                 padding: 9px 0;
-                font-size: 1.2rem;
+                font-size: 1rem;
             }
             canvas {
                 height: 150px;
@@ -150,7 +154,7 @@
     </style>
 </head>
 <body>
-    <!-- Маленький индикатор офлайн (не блокирует) -->
+    <!-- Маленький индикатор офлайн -->
     <div id="offlineIndicator" class="offline-indicator">📡 Нет интернета, радио продолжает играть</div>
 
     <div class="mobile-container">
@@ -158,7 +162,10 @@
 
         <div class="custom-player">
             <div class="button-container">
-                <button class="play-stop-btn" id="playStopBtn">▶ PLAY</button>
+                <button class="play-stop-btn" id="playStopBtn">
+                    <span id="btnIcon">▶</span>
+                    <span id="btnText">PLAY</span>
+                </button>
             </div>
             <div class="visualizer-container">
                 <canvas id="visualizerCanvas" width="800" height="180"></canvas>
@@ -166,7 +173,6 @@
         </div>
 
         <div class="status-text" id="statusText">Готов к воспроизведению</div>
-        <main class="content"></main>
     </div>
 
     <script>
@@ -181,7 +187,7 @@
         }
         
         // ============================================================
-        // НАСТРОЙКИ РАДИО (РАБОТАЕТ ДАЖЕ БЕЗ ИНТЕРНЕТА)
+        // НАСТРОЙКИ РАДИО
         // ============================================================
         const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
         
@@ -192,7 +198,6 @@
         let gainNode = null;
         let animationId = null;
         let isPlaying = false;
-        let isInitialized = false;
         
         let dataArray = null;
         let canvasWidth = 800;
@@ -201,6 +206,8 @@
         
         // DOM элементы
         const playStopBtn = document.getElementById('playStopBtn');
+        const btnIcon = document.getElementById('btnIcon');
+        const btnText = document.getElementById('btnText');
         const statusSpan = document.getElementById('statusText');
         const canvas = document.getElementById('visualizerCanvas');
         const ctx = canvas.getContext('2d');
@@ -210,6 +217,18 @@
             statusSpan.textContent = msg;
             statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
             console.log(msg);
+        }
+        
+        function updateButtonUI(isRadioPlaying) {
+            if (isRadioPlaying) {
+                btnIcon.innerHTML = '⏹';
+                btnText.innerHTML = 'STOP';
+                playStopBtn.classList.add('playing');
+            } else {
+                btnIcon.innerHTML = '▶';
+                btnText.innerHTML = 'PLAY';
+                playStopBtn.classList.remove('playing');
+            }
         }
         
         function showOfflineMessage() {
@@ -360,11 +379,10 @@
                 updateStatus('Подключение к потоку...');
                 
                 if (audioElement && !isPlaying) {
-                    // Пытаемся продолжить, если уже есть элемент
                     try {
                         await audioElement.play();
                         isPlaying = true;
-                        playStopBtn.innerHTML = '⏹ STOP';
+                        updateButtonUI(true);
                         updateStatus('▶ В эфире');
                         return;
                     } catch(e) {
@@ -377,13 +395,18 @@
                     audioElement.src = '';
                     audioElement = null;
                 }
+                if (audioContext && audioContext.state !== 'closed') {
+                    if (animationId) cancelAnimationFrame(animationId);
+                    try { await audioContext.close(); } catch(e) {}
+                    audioContext = null;
+                    analyserNode = null;
+                }
                 
                 const newAudio = new Audio();
                 newAudio.crossOrigin = 'anonymous';
                 newAudio.src = RADIO_STREAM_URL;
                 newAudio.preload = 'auto';
                 
-                // ВАЖНО: не ждем загрузку, просто пытаемся играть
                 audioElement = newAudio;
                 
                 try {
@@ -393,16 +416,13 @@
                     }
                     await audioElement.play();
                     isPlaying = true;
-                    playStopBtn.innerHTML = '⏹ STOP';
+                    updateButtonUI(true);
                     updateStatus('▶ В эфире');
                 } catch (playError) {
-                    console.log('Play error (maybe no internet):', playError);
-                    // Даже если ошибка - помечаем как "играет" визуально
+                    console.log('Play error:', playError);
                     isPlaying = true;
-                    playStopBtn.innerHTML = '⏹ STOP';
+                    updateButtonUI(true);
                     updateStatus('▶ Радио включено');
-                    
-                    // Пытаемся восстановить поток
                     setTimeout(() => {
                         if (audioElement && isPlaying) {
                             audioElement.play().catch(e => console.log('Retry play:', e));
@@ -412,7 +432,6 @@
                 
             } catch (err) {
                 console.error('Start error:', err);
-                // Не сбрасываем isPlaying, чтобы кнопка оставалась STOP
                 updateStatus('Поток буферизируется...');
             }
         }
@@ -424,7 +443,7 @@
                 } catch(e) {}
             }
             isPlaying = false;
-            playStopBtn.innerHTML = '▶ PLAY';
+            updateButtonUI(false);
             updateStatus('Остановлено');
         }
         
@@ -440,7 +459,6 @@
         window.addEventListener('online', function() {
             console.log('🌐 Интернет появился');
             showOfflineMessage();
-            // Если радио в режиме "играет" - пробуем восстановить поток
             if (isPlaying && audioElement) {
                 audioElement.play().catch(e => console.log('Resume play:', e));
             }
@@ -449,11 +467,9 @@
         window.addEventListener('offline', function() {
             console.log('📡 Интернет пропал - радио продолжает играть');
             showOfflineMessage();
-            // НЕ ОСТАНАВЛИВАЕМ audioElement!
-            // Просто показываем уведомление
         });
         
-        // Демо-визуализация для привлечения внимания
+        // Демо-визуализация
         let demoAnimationId = null;
         function demoVisualization() {
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
@@ -495,7 +511,6 @@
         demoVisualization();
         updateStatus('Нажмите PLAY');
         
-        // Сохраняем состояние в sessionStorage для восстановления
         window.addEventListener('beforeunload', () => {
             if (isPlaying) {
                 sessionStorage.setItem('radioWasPlaying', 'true');
@@ -506,13 +521,11 @@
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
         });
         
-        // Восстановление состояния после перезагрузки
         if (sessionStorage.getItem('radioWasPlaying') === 'true') {
             sessionStorage.removeItem('radioWasPlaying');
             setTimeout(startPlayback, 500);
         }
         
-        // Сообщаем Service Worker о состоянии
         if (navigator.serviceWorker.controller) {
             navigator.serviceWorker.controller.postMessage({
                 type: 'PLAY_STATE',
