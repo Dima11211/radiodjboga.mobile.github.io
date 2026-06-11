@@ -144,9 +144,6 @@
     </div>
 
     <script>
-        // ============================================================
-        // НАСТРОЙКИ РАДИО
-        // ============================================================
         const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
         
         let audioElement = null;
@@ -354,19 +351,20 @@
                 updateStatus('▶ В эфире');
                 
             } catch (err) {
-                console.error('Start error:', err);
+                console.error(err);
                 updateStatus('Ошибка подключения', true);
                 isPlaying = false;
                 updateButtonUI(false);
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                    audioElement = null;
+                }
             }
         }
         
         function stopPlayback() {
-            if (audioElement) {
-                try {
-                    audioElement.pause();
-                } catch(e) {}
-            }
+            if (audioElement) audioElement.pause();
             isPlaying = false;
             updateButtonUI(false);
             updateStatus('Остановлено');
