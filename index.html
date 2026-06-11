@@ -5,15 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RADIO DJ BOGA | Интернет Радио</title>
     
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-L3147Z3JSN"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', 'G-L3147Z3JSN');
-    </script>
-    
     <style>
         * {
             margin: 0;
@@ -22,47 +13,40 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f5 100%);
             min-height: 100vh;
         }
 
-        .mobile-container {
+        .container {
             width: 100%;
             max-width: 480px;
             margin: 0 auto;
-            padding: 10px 20px 20px 20px;
-            position: relative;
+            padding: 20px;
         }
 
-        .logo-image {
+        .logo {
             width: 100%;
-            max-width: 100%;
             height: auto;
             display: block;
-            margin: 5px 0 0 0;
-            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08));
+            margin-bottom: 20px;
         }
 
-        .custom-player {
+        .player {
             background: #03fff7;
             border-radius: 0;
-            padding: 0;
-            margin-top: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
             overflow: hidden;
+            box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
         }
 
-        .button-container {
+        .button-wrapper {
             display: flex;
             justify-content: center;
-            padding: 20px 0 20px 0;
+            padding: 20px 0;
             background: #03fff7;
             border-bottom: 2px solid rgba(255, 255, 255, 0.5);
         }
 
-        .play-stop-btn {
+        .play-btn {
             background: linear-gradient(135deg, #8b0000, #5a0000);
             border: none;
             width: 200px;
@@ -81,17 +65,17 @@
             letter-spacing: 1px;
         }
 
-        .play-stop-btn:active {
+        .play-btn:active {
             transform: scale(0.96);
         }
 
-        .play-stop-btn.playing {
+        .play-btn.playing {
             background: linear-gradient(135deg, #2c2c2c, #1a1a1a);
         }
 
-        .visualizer-container {
+        .viz-wrapper {
             background: rgba(0, 0, 0, 0.15);
-            padding: 20px 16px 24px 16px;
+            padding: 20px 16px;
         }
 
         canvas {
@@ -102,20 +86,20 @@
             border-radius: 12px;
         }
 
-        .status-text {
+        .status {
             text-align: center;
             margin-top: 15px;
             font-size: 0.8rem;
             font-weight: 500;
+            color: #1a1a2e;
         }
 
         @media (max-width: 480px) {
-            .mobile-container {
-                padding: 8px 16px 16px 16px;
+            .container {
+                padding: 15px;
             }
-            .play-stop-btn {
+            .play-btn {
                 width: 160px;
-                padding: 9px 0;
                 font-size: 1rem;
             }
             canvas {
@@ -125,317 +109,275 @@
     </style>
 </head>
 <body>
-    <div class="mobile-container">
-        <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
+    <div class="container">
+        <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo">
 
-        <div class="custom-player">
-            <div class="button-container">
-                <button class="play-stop-btn" id="playStopBtn">
-                    <span id="btnIcon">▶</span>
-                    <span id="btnText">PLAY</span>
-                </button>
+        <div class="player">
+            <div class="button-wrapper">
+                <button class="play-btn" id="playBtn">▶ PLAY</button>
             </div>
-            <div class="visualizer-container">
-                <canvas id="visualizerCanvas" width="800" height="180"></canvas>
+            <div class="viz-wrapper">
+                <canvas id="vizCanvas" width="800" height="180"></canvas>
             </div>
         </div>
 
-        <div class="status-text" id="statusText">Готов к воспроизведению</div>
+        <div class="status" id="statusText">Готов к воспроизведению</div>
     </div>
 
     <script>
-        const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
+        const STREAM_URL = "https://radio.radiodjboga.online/stream";
         
-        let audioElement = null;
-        let audioContext = null;
-        let sourceNode = null;
-        let analyserNode = null;
-        let gainNode = null;
-        let animationId = null;
+        let audio = null;
+        let ctxAudio = null;
+        let source = null;
+        let analyser = null;
+        let animation = null;
         let isPlaying = false;
         
-        let dataArray = null;
-        let canvasWidth = 800;
-        let canvasHeight = 180;
-        let prevValues = [];
+        let freqData = null;
+        let canvasW = 800;
+        let canvasH = 180;
+        let prevVals = [];
         
-        const playStopBtn = document.getElementById('playStopBtn');
-        const btnIcon = document.getElementById('btnIcon');
-        const btnText = document.getElementById('btnText');
+        const playBtn = document.getElementById('playBtn');
         const statusSpan = document.getElementById('statusText');
-        const canvas = document.getElementById('visualizerCanvas');
+        const canvas = document.getElementById('vizCanvas');
         const ctx = canvas.getContext('2d');
         
-        function updateStatus(msg, isError = false) {
+        function setStatus(msg, isErr = false) {
             statusSpan.textContent = msg;
-            statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
-        }
-        
-        function updateButtonUI(isRadioPlaying) {
-            if (isRadioPlaying) {
-                btnIcon.innerHTML = '⏹';
-                btnText.innerHTML = 'STOP';
-                playStopBtn.classList.add('playing');
-            } else {
-                btnIcon.innerHTML = '▶';
-                btnText.innerHTML = 'PLAY';
-                playStopBtn.classList.remove('playing');
-            }
+            statusSpan.style.color = isErr ? '#e74c3c' : '#1a1a2e';
         }
         
         function resizeCanvas() {
-            const container = canvas.parentElement;
-            const width = container.clientWidth - 32;
-            canvas.width = width;
+            const w = canvas.parentElement.clientWidth - 32;
+            canvas.width = w;
             canvas.height = 180;
-            canvasWidth = canvas.width;
-            canvasHeight = canvas.height;
-            if (analyserNode) {
-                const bufferLength = analyserNode.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-                prevValues = new Array(bufferLength).fill(0);
+            canvasW = canvas.width;
+            canvasH = canvas.height;
+            if (analyser) {
+                const len = analyser.frequencyBinCount;
+                freqData = new Uint8Array(len);
+                prevVals = new Array(len).fill(0);
             }
         }
         
         window.addEventListener('resize', () => setTimeout(resizeCanvas, 100));
         resizeCanvas();
         
-        async function initWebAudioForRadio() {
-            if (!audioElement) return false;
+        async function initAudio() {
+            if (!audio) return false;
             
-            if (audioContext && audioContext.state !== 'closed') {
-                if (animationId) cancelAnimationFrame(animationId);
-                try { await audioContext.close(); } catch(e) {}
+            if (ctxAudio && ctxAudio.state !== 'closed') {
+                if (animation) cancelAnimationFrame(animation);
+                try { await ctxAudio.close(); } catch(e) {}
             }
             
             try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                sourceNode = audioContext.createMediaElementSource(audioElement);
-                analyserNode = audioContext.createAnalyser();
-                analyserNode.fftSize = 256;
-                analyserNode.smoothingTimeConstant = 0.7;
-                gainNode = audioContext.createGain();
-                gainNode.gain.value = 0.8;
+                ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+                source = ctxAudio.createMediaElementSource(audio);
+                analyser = ctxAudio.createAnalyser();
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.7;
+                const gain = ctxAudio.createGain();
+                gain.gain.value = 0.8;
                 
-                sourceNode.connect(analyserNode);
-                analyserNode.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                source.connect(analyser);
+                analyser.connect(gain);
+                gain.connect(ctxAudio.destination);
                 
-                const bufferLength = analyserNode.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-                prevValues = new Array(bufferLength).fill(0);
-                startVisualization();
+                const len = analyser.frequencyBinCount;
+                freqData = new Uint8Array(len);
+                prevVals = new Array(len).fill(0);
+                startViz();
                 return true;
-            } catch (error) {
-                console.error("Web Audio ошибка:", error);
+            } catch (err) {
+                console.error(err);
                 return false;
             }
         }
         
-        function getColorForHeight(percent, isPeak = false) {
+        function getColor(pct, isPeak = false) {
             let hue;
-            if (percent < 0.16) {
-                hue = 120 - (percent / 0.16) * 60;
-            } else if (percent < 0.33) {
-                hue = 60 - ((percent - 0.16) / 0.17) * 30;
-            } else if (percent < 0.5) {
-                hue = 30 - ((percent - 0.33) / 0.17) * 15;
-            } else if (percent < 0.66) {
-                hue = 15 - ((percent - 0.5) / 0.16) * 15;
-            } else if (percent < 0.83) {
-                hue = 0 - ((percent - 0.66) / 0.17) * 60;
-                if (hue < 0) hue += 360;
-            } else {
-                hue = 300 - ((percent - 0.83) / 0.17) * 60;
-            }
-            if (percent > 0.95) hue = 240;
-            let sat = 85;
-            let light = 50;
-            if (isPeak && percent > 0.8) {
-                light = 65;
-                sat = 95;
-            }
+            if (pct < 0.16) hue = 120 - (pct / 0.16) * 60;
+            else if (pct < 0.33) hue = 60 - ((pct - 0.16) / 0.17) * 30;
+            else if (pct < 0.5) hue = 30 - ((pct - 0.33) / 0.17) * 15;
+            else if (pct < 0.66) hue = 15 - ((pct - 0.5) / 0.16) * 15;
+            else if (pct < 0.83) hue = 0 - ((pct - 0.66) / 0.17) * 60;
+            else hue = 300 - ((pct - 0.83) / 0.17) * 60;
+            if (pct > 0.95) hue = 240;
+            let sat = 85, light = 50;
+            if (isPeak && pct > 0.8) { light = 65; sat = 95; }
+            if (hue < 0) hue += 360;
             return `hsl(${hue}, ${sat}%, ${light}%)`;
         }
         
-        function startVisualization() {
-            if (animationId) cancelAnimationFrame(animationId);
+        function startViz() {
+            if (animation) cancelAnimationFrame(animation);
             function draw() {
-                if (!analyserNode || !ctx) {
-                    animationId = requestAnimationFrame(draw);
+                if (!analyser || !ctx) {
+                    animation = requestAnimationFrame(draw);
                     return;
                 }
-                if (dataArray) analyserNode.getByteFrequencyData(dataArray);
-                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                if (freqData) analyser.getByteFrequencyData(freqData);
+                ctx.clearRect(0, 0, canvasW, canvasH);
                 
-                const barCount = analyserNode.frequencyBinCount;
-                const halfBarCount = barCount / 2;
-                let maxValue = 0;
-                for (let i = 0; i < barCount; i++) {
-                    if (dataArray[i] > maxValue) maxValue = dataArray[i];
-                }
-                if (maxValue < 1) maxValue = 255;
+                const bars = analyser.frequencyBinCount;
+                const half = bars / 2;
+                let max = 0;
+                for (let i = 0; i < bars; i++) if (freqData[i] > max) max = freqData[i];
+                if (max < 1) max = 255;
                 
-                const displayBars = [];
-                for (let i = 0; i < barCount; i++) {
-                    let distanceFromCenter = Math.abs(i - halfBarCount) / halfBarCount;
-                    let frequencyWeight = 1 - distanceFromCenter;
-                    let boostedValue = dataArray[i] * (0.5 + frequencyWeight * 0.8);
-                    displayBars[i] = Math.min(255, boostedValue);
+                const boosted = [];
+                for (let i = 0; i < bars; i++) {
+                    const dist = Math.abs(i - half) / half;
+                    const weight = 1 - dist;
+                    boosted[i] = Math.min(255, freqData[i] * (0.5 + weight * 0.8));
                 }
                 
-                for (let i = 0; i < barCount; i++) {
-                    let value = displayBars[i] || 0;
-                    let percent = value / maxValue;
-                    let barHeight = Math.max(4, percent * canvasHeight * 0.85);
-                    if (prevValues[i]) barHeight = prevValues[i] * 0.6 + barHeight * 0.4;
-                    prevValues[i] = barHeight;
+                for (let i = 0; i < bars; i++) {
+                    let val = boosted[i] || 0;
+                    let pct = val / max;
+                    let h = Math.max(4, pct * canvasH * 0.85);
+                    if (prevVals[i]) h = prevVals[i] * 0.6 + h * 0.4;
+                    prevVals[i] = h;
                     
-                    const x = i * (canvasWidth / barCount);
-                    const w = Math.max(6, (canvasWidth / barCount) * 1.6);
-                    const isPeak = value > 180;
-                    const gradient = ctx.createLinearGradient(x, canvasHeight - barHeight, x, canvasHeight);
-                    gradient.addColorStop(0, getColorForHeight(0, false));
-                    gradient.addColorStop(0.16, getColorForHeight(0.16, false));
-                    gradient.addColorStop(0.33, getColorForHeight(0.33, false));
-                    gradient.addColorStop(0.5, getColorForHeight(0.5, false));
-                    gradient.addColorStop(0.66, getColorForHeight(0.66, false));
-                    gradient.addColorStop(0.83, getColorForHeight(0.83, false));
-                    gradient.addColorStop(1, getColorForHeight(1, isPeak));
+                    const x = i * (canvasW / bars);
+                    const w = Math.max(6, (canvasW / bars) * 1.6);
+                    const isPeak = val > 180;
+                    const grad = ctx.createLinearGradient(x, canvasH - h, x, canvasH);
+                    grad.addColorStop(0, getColor(0));
+                    grad.addColorStop(0.16, getColor(0.16));
+                    grad.addColorStop(0.33, getColor(0.33));
+                    grad.addColorStop(0.5, getColor(0.5));
+                    grad.addColorStop(0.66, getColor(0.66));
+                    grad.addColorStop(0.83, getColor(0.83));
+                    grad.addColorStop(1, getColor(1, isPeak));
                     
-                    ctx.fillStyle = gradient;
+                    ctx.fillStyle = grad;
                     ctx.shadowBlur = isPeak ? 10 : 4;
                     ctx.shadowColor = isPeak ? '#ff3300' : '#ff8c00';
-                    ctx.fillRect(x + 1, canvasHeight - barHeight, w - 1, barHeight);
-                    if (isPeak && barHeight > 15) {
+                    ctx.fillRect(x + 1, canvasH - h, w - 1, h);
+                    
+                    if (isPeak && h > 15) {
                         ctx.fillStyle = `rgba(100, 100, 255, 0.6)`;
-                        ctx.fillRect(x + 1, canvasHeight - barHeight - 2, w - 1, 4);
+                        ctx.fillRect(x + 1, canvasH - h - 2, w - 1, 4);
                     }
                 }
                 ctx.shadowBlur = 0;
-                animationId = requestAnimationFrame(draw);
+                animation = requestAnimationFrame(draw);
             }
             draw();
         }
         
-        async function startPlayback() {
+        async function startRadio() {
             try {
-                updateStatus('Подключение к потоку...');
+                setStatus('Подключение...');
                 
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.src = '';
-                    audioElement = null;
+                if (audio) {
+                    audio.pause();
+                    audio.src = '';
+                    audio = null;
                 }
-                if (audioContext && audioContext.state !== 'closed') {
-                    if (animationId) cancelAnimationFrame(animationId);
-                    try { await audioContext.close(); } catch(e) {}
-                    audioContext = null;
-                    analyserNode = null;
+                if (ctxAudio && ctxAudio.state !== 'closed') {
+                    if (animation) cancelAnimationFrame(animation);
+                    try { await ctxAudio.close(); } catch(e) {}
+                    ctxAudio = null;
+                    analyser = null;
                 }
                 
                 const newAudio = new Audio();
                 newAudio.crossOrigin = 'anonymous';
-                newAudio.src = RADIO_STREAM_URL;
+                newAudio.src = STREAM_URL;
                 newAudio.preload = 'auto';
                 
                 await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('Таймаут загрузки')), 15000);
-                    newAudio.addEventListener('canplay', () => {
-                        clearTimeout(timeout);
-                        resolve();
-                    }, { once: true });
-                    newAudio.addEventListener('error', () => {
-                        clearTimeout(timeout);
-                        reject(new Error('Ошибка загрузки потока'));
-                    }, { once: true });
+                    const tm = setTimeout(() => reject('Таймаут'), 15000);
+                    newAudio.addEventListener('canplay', () => { clearTimeout(tm); resolve(); }, { once: true });
+                    newAudio.addEventListener('error', () => { clearTimeout(tm); reject('Ошибка'); }, { once: true });
                     newAudio.load();
                 });
                 
-                audioElement = newAudio;
-                const webAudioOk = await initWebAudioForRadio();
-                if (!webAudioOk) throw new Error('Не удалось инициализировать аудио');
+                audio = newAudio;
+                const ok = await initAudio();
+                if (!ok) throw new Error('Ошибка звука');
                 
-                if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
-                await audioElement.play();
+                if (ctxAudio && ctxAudio.state === 'suspended') await ctxAudio.resume();
+                await audio.play();
                 isPlaying = true;
-                updateButtonUI(true);
-                updateStatus('▶ В эфире');
+                playBtn.innerHTML = '⏹ STOP';
+                playBtn.classList.add('playing');
+                setStatus('В эфире');
                 
             } catch (err) {
                 console.error(err);
-                updateStatus('Ошибка: ' + err.message, true);
+                setStatus('Ошибка', true);
                 isPlaying = false;
-                updateButtonUI(false);
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.src = '';
-                    audioElement = null;
-                }
+                playBtn.innerHTML = '▶ PLAY';
+                playBtn.classList.remove('playing');
+                if (audio) { audio.pause(); audio.src = ''; audio = null; }
             }
         }
         
-        function stopPlayback() {
-            if (audioElement) audioElement.pause();
+        function stopRadio() {
+            if (audio) audio.pause();
             isPlaying = false;
-            updateButtonUI(false);
-            updateStatus('Остановлено');
+            playBtn.innerHTML = '▶ PLAY';
+            playBtn.classList.remove('playing');
+            setStatus('Остановлено');
         }
         
-        async function togglePlayStop() {
-            if (isPlaying) {
-                stopPlayback();
-            } else {
-                await startPlayback();
-            }
+        function toggle() {
+            if (isPlaying) stopRadio();
+            else startRadio();
         }
         
-        let demoAnimationId = null;
-        function demoVisualization() {
-            if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
-            function drawDemo() {
-                if (analyserNode && isPlaying) {
-                    if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
+        let demoAnim = null;
+        function demoViz() {
+            if (demoAnim) cancelAnimationFrame(demoAnim);
+            function draw() {
+                if (analyser && isPlaying) {
+                    if (demoAnim) cancelAnimationFrame(demoAnim);
                     return;
                 }
-                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-                const barCount = 48;
-                const halfBarCount = barCount / 2;
+                ctx.clearRect(0, 0, canvasW, canvasH);
+                const bars = 48;
+                const half = bars / 2;
                 const time = Date.now() * 0.005;
-                for (let i = 0; i < barCount; i++) {
-                    let distanceFromCenter = Math.abs(i - halfBarCount) / halfBarCount;
-                    let boostFactor = Math.cos(distanceFromCenter * Math.PI / 2);
-                    let fake = 20 + Math.sin(time + i * 0.2) * 15;
-                    fake = fake * (0.3 + boostFactor * 0.9);
-                    fake = Math.min(canvasHeight * 0.6, Math.max(5, fake));
-                    const x = i * (canvasWidth / barCount);
-                    const w = Math.max(6, (canvasWidth / barCount) * 1.6);
-                    const gradient = ctx.createLinearGradient(x, canvasHeight - fake, x, canvasHeight);
-                    gradient.addColorStop(0, '#00ff00');
-                    gradient.addColorStop(0.25, '#ffff00');
-                    gradient.addColorStop(0.5, '#ff8800');
-                    gradient.addColorStop(0.75, '#ff0000');
-                    gradient.addColorStop(1, '#0000aa');
-                    ctx.fillStyle = gradient;
+                for (let i = 0; i < bars; i++) {
+                    const dist = Math.abs(i - half) / half;
+                    const boost = Math.cos(dist * Math.PI / 2);
+                    let h = 20 + Math.sin(time + i * 0.2) * 15;
+                    h = h * (0.3 + boost * 0.9);
+                    h = Math.min(canvasH * 0.6, Math.max(5, h));
+                    const x = i * (canvasW / bars);
+                    const w = Math.max(6, (canvasW / bars) * 1.6);
+                    const grad = ctx.createLinearGradient(x, canvasH - h, x, canvasH);
+                    grad.addColorStop(0, '#00ff00');
+                    grad.addColorStop(0.25, '#ffff00');
+                    grad.addColorStop(0.5, '#ff8800');
+                    grad.addColorStop(0.75, '#ff0000');
+                    grad.addColorStop(1, '#0000aa');
+                    ctx.fillStyle = grad;
                     ctx.shadowBlur = 4;
                     ctx.shadowColor = '#8888ff';
-                    ctx.fillRect(x + 1, canvasHeight - fake, w - 1, fake);
+                    ctx.fillRect(x + 1, canvasH - h, w - 1, h);
                 }
                 ctx.shadowBlur = 0;
-                demoAnimationId = requestAnimationFrame(drawDemo);
+                demoAnim = requestAnimationFrame(draw);
             }
-            drawDemo();
+            draw();
         }
         
-        playStopBtn.addEventListener('click', togglePlayStop);
-        demoVisualization();
-        updateStatus('Нажмите PLAY');
+        playBtn.addEventListener('click', toggle);
+        demoViz();
+        setStatus('Нажмите PLAY');
         
         window.addEventListener('beforeunload', () => {
-            if (audioElement) audioElement.pause();
-            if (audioContext) audioContext.close();
-            if (animationId) cancelAnimationFrame(animationId);
-            if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
+            if (audio) audio.pause();
+            if (ctxAudio) ctxAudio.close();
+            if (animation) cancelAnimationFrame(animation);
+            if (demoAnim) cancelAnimationFrame(demoAnim);
         });
     </script>
 </body>
