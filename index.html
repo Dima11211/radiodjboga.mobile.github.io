@@ -136,7 +136,7 @@
 
     <script>
         // ============================================================
-        // РЕГИСТРАЦИЯ SERVICE WORKER ДЛЯ ФОНОВОГО ВОСПРОИЗВЕДЕНИЯ
+        // РЕГИСТРАЦИЯ SERVICE WORKER
         // ============================================================
         
         if ('serviceWorker' in navigator) {
@@ -146,17 +146,19 @@
         }
         
         // ============================================================
-        // НАСТРОЙКИ РАДИО - ЧЕРЕЗ FETCH + WEB AUDIO (БЕЗ СИСТЕМНЫХ СООБЩЕНИЙ)
+        // НАСТРОЙКИ РАДИО
         // ============================================================
         const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
         
+        let audioElement = null;
         let audioContext = null;
         let sourceNode = null;
         let analyserNode = null;
         let gainNode = null;
-        let isPlaying = false;
-        let currentReader = null;
         let animationId = null;
+        let isPlaying = false;
+        let reconnectAttempt = 0;
+        let reconnectTimer = null;
         
         let dataArray = null;
         let canvasWidth = 800;
@@ -199,174 +201,35 @@
         window.addEventListener('resize', () => setTimeout(resizeCanvas, 100));
         resizeCanvas();
         
-        async function initWebAudio() {
+        async function initWebAudioForRadio() {
+            if (!audioElement) return false;
+            
             if (audioContext && audioContext.state !== 'closed') {
-                return audioContext;
-            }
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyserNode = audioContext.createAnalyser();
-            analyserNode.fftSize = 256;
-            analyserNode.smoothingTimeConstant = 0.7;
-            gainNode = audioContext.createGain();
-            gainNode.gain.value = 0.8;
-            
-            analyserNode.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            const bufferLength = analyserNode.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
-            prevValues = new Array(bufferLength).fill(0);
-            startVisualization();
-            return audioContext;
-        }
-        
-        async function playStream() {
-            if (isPlaying) return;
-            
-            // Останавливаем текущий поток
-            if (currentReader) {
-                try {
-                    await currentReader.cancel();
-                } catch(e) {}
-                currentReader = null;
-            }
-            if (sourceNode) {
-                try {
-                    sourceNode.disconnect();
-                } catch(e) {}
-                sourceNode = null;
+                if (animationId) cancelAnimationFrame(animationId);
+                try { await audioContext.close(); } catch(e) {}
             }
             
             try {
-                const context = await initWebAudio();
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                sourceNode = audioContext.createMediaElementSource(audioElement);
+                analyserNode = audioContext.createAnalyser();
+                analyserNode.fftSize = 256;
+                analyserNode.smoothingTimeConstant = 0.7;
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = 0.8;
                 
-                // Запрашиваем поток
-                const response = await fetch(RADIO_STREAM_URL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                if (!response.body) throw new Error('No response body');
+                sourceNode.connect(analyserNode);
+                analyserNode.connect(gainNode);
+                gainNode.connect(audioContext.destination);
                 
-                const reader = response.body.getReader();
-                currentReader = reader;
-                
-                // Создаем очередь для декодирования
-                let pendingBuffers = [];
-                let isDecoding = false;
-                let stopped = false;
-                
-                async function processChunk() {
-                    if (stopped) return;
-                    if (isDecoding) {
-                        setTimeout(processChunk, 50);
-                        return;
-                    }
-                    if (pendingBuffers.length === 0) {
-                        setTimeout(processChunk, 100);
-                        return;
-                    }
-                    isDecoding = true;
-                    const chunk = pendingBuffers.shift();
-                    try {
-                        const decoded = await context.decodeAudioData(chunk.buffer);
-                        if (!stopped && sourceNode === null && isPlaying) {
-                            sourceNode = context.createBufferSource();
-                            sourceNode.buffer = decoded;
-                            sourceNode.connect(analyserNode);
-                            sourceNode.onended = () => {
-                                if (isPlaying && !stopped) {
-                                    sourceNode = null;
-                                    processChunk();
-                                }
-                            };
-                            sourceNode.start();
-                        }
-                    } catch (e) {
-                        console.log('Decode error:', e);
-                    }
-                    isDecoding = false;
-                    if (pendingBuffers.length > 0 && !stopped) {
-                        processChunk();
-                    }
-                }
-                
-                // Читаем поток
-                async function readStream() {
-                    try {
-                        while (true) {
-                            const { done, value } = await reader.read();
-                            if (done || stopped) break;
-                            // Собираем MP3 куски в буфер
-                            if (value && value.length > 0) {
-                                const copy = new Uint8Array(value);
-                                pendingBuffers.push(copy);
-                                if (!isDecoding) processChunk();
-                            }
-                        }
-                    } catch (e) {
-                        console.log('Stream read error:', e);
-                        if (isPlaying && !stopped) {
-                            // Переподключение без сообщений
-                            setTimeout(() => {
-                                if (isPlaying && !stopped) playStream();
-                            }, 2000);
-                        }
-                    }
-                }
-                
-                readStream();
-                
-            } catch (err) {
-                console.log('Connection error:', err);
-                if (isPlaying) {
-                    setTimeout(() => {
-                        if (isPlaying) playStream();
-                    }, 3000);
-                }
-            }
-        }
-        
-        async function startPlayback() {
-            if (isPlaying) return;
-            
-            isPlaying = true;
-            updateButtonUI(true);
-            
-            try {
-                await initWebAudio();
-                if (audioContext && audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
-                await playStream();
-            } catch (err) {
-                console.log('Start error:', err);
-                if (isPlaying) {
-                    setTimeout(startPlayback, 1000);
-                }
-            }
-        }
-        
-        async function stopPlayback() {
-            isPlaying = false;
-            if (currentReader) {
-                try {
-                    await currentReader.cancel();
-                } catch(e) {}
-                currentReader = null;
-            }
-            if (sourceNode) {
-                try {
-                    sourceNode.stop();
-                    sourceNode.disconnect();
-                } catch(e) {}
-                sourceNode = null;
-            }
-            updateButtonUI(false);
-        }
-        
-        function togglePlayStop() {
-            if (isPlaying) {
-                stopPlayback();
-            } else {
-                startPlayback();
+                const bufferLength = analyserNode.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                prevValues = new Array(bufferLength).fill(0);
+                startVisualization();
+                return true;
+            } catch (error) {
+                console.error("Web Audio ошибка:", error);
+                return false;
             }
         }
         
@@ -399,7 +262,7 @@
         function startVisualization() {
             if (animationId) cancelAnimationFrame(animationId);
             function draw() {
-                if (!analyserNode || !ctx || !isPlaying) {
+                if (!analyserNode || !ctx) {
                     animationId = requestAnimationFrame(draw);
                     return;
                 }
@@ -456,12 +319,191 @@
             draw();
         }
         
+        // Функция переподключения БЕЗ вывода сообщений на экран
+        function silentReconnect() {
+            if (!isPlaying) return;
+            
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            
+            reconnectAttempt++;
+            
+            // Просто пытаемся переподключиться в фоне, без текста
+            if (audioElement) {
+                // Пробуем перезагрузить аудио без вывода сообщений
+                const currentSrc = audioElement.src;
+                if (currentSrc) {
+                    audioElement.load();
+                    audioElement.play().catch(() => {
+                        // Полная перезагрузка потока
+                        if (isPlaying) {
+                            const newAudio = new Audio();
+                            newAudio.crossOrigin = 'anonymous';
+                            newAudio.src = RADIO_STREAM_URL;
+                            
+                            const oldAudio = audioElement;
+                            audioElement = newAudio;
+                            
+                            if (oldAudio) {
+                                oldAudio.pause();
+                                oldAudio.src = '';
+                            }
+                            
+                            initWebAudioForRadio().then(() => {
+                                if (audioContext && audioContext.state === 'suspended') {
+                                    audioContext.resume();
+                                }
+                                audioElement.play().catch(e => console.log('Reconnect play error:', e));
+                            });
+                        }
+                    });
+                }
+            }
+            
+            // Если всё ещё не работает, пробуем через 5 секунд (без сообщений)
+            reconnectTimer = setTimeout(() => {
+                if (isPlaying && audioElement && audioElement.paused) {
+                    silentReconnect();
+                } else {
+                    reconnectAttempt = 0;
+                }
+            }, 5000);
+        }
+        
+        // ПЕРЕХВАТЫВАЕМ ВСЕ ОШИБКИ И БЛОКИРУЕМ СООБЩЕНИЯ О ПЕРЕПОДКЛЮЧЕНИИ
+        function setupSilentErrorHandling() {
+            if (!audioElement) return;
+            
+            // Перехватываем ошибки и тихо переподключаемся
+            audioElement.onerror = (e) => {
+                console.log('Audio error (silent):', e);
+                if (isPlaying) {
+                    silentReconnect();
+                }
+                return false; // Предотвращаем показ стандартной ошибки
+            };
+            
+            audioElement.onstalled = () => {
+                console.log('Audio stalled (silent)');
+                if (isPlaying) {
+                    silentReconnect();
+                }
+            };
+            
+            audioElement.onwaiting = () => {
+                // Буферизация — ничего не показываем
+                console.log('Buffering... (silent)');
+            };
+            
+            // Отключаем стандартные сообщения браузера
+            audioElement.setAttribute('x-webkit-airplay', 'deny');
+        }
+        
+        async function startPlayback() {
+            try {
+                reconnectAttempt = 0;
+                if (reconnectTimer) clearTimeout(reconnectTimer);
+                
+                if (audioElement && !isPlaying) {
+                    try {
+                        setupSilentErrorHandling();
+                        await audioElement.play();
+                        isPlaying = true;
+                        updateButtonUI(true);
+                        return;
+                    } catch(e) {
+                        console.log('Need to recreate audio');
+                    }
+                }
+                
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                    audioElement = null;
+                }
+                if (audioContext && audioContext.state !== 'closed') {
+                    if (animationId) cancelAnimationFrame(animationId);
+                    try { await audioContext.close(); } catch(e) {}
+                    audioContext = null;
+                    analyserNode = null;
+                }
+                
+                const newAudio = new Audio();
+                newAudio.crossOrigin = 'anonymous';
+                newAudio.src = RADIO_STREAM_URL;
+                newAudio.preload = 'auto';
+                
+                audioElement = newAudio;
+                setupSilentErrorHandling();
+                
+                try {
+                    await initWebAudioForRadio();
+                    if (audioContext && audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
+                    await audioElement.play();
+                    isPlaying = true;
+                    updateButtonUI(true);
+                } catch (playError) {
+                    console.log('Play error:', playError);
+                    isPlaying = true;
+                    updateButtonUI(true);
+                    setTimeout(() => {
+                        if (audioElement && isPlaying) {
+                            audioElement.play().catch(e => console.log('Retry play:', e));
+                        }
+                    }, 2000);
+                }
+                
+            } catch (err) {
+                console.error('Start error:', err);
+                // Тихо переподключаемся
+                if (isPlaying) silentReconnect();
+            }
+        }
+        
+        function stopPlayback() {
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+            reconnectAttempt = 0;
+            
+            if (audioElement) {
+                try {
+                    audioElement.pause();
+                } catch(e) {}
+            }
+            isPlaying = false;
+            updateButtonUI(false);
+        }
+        
+        async function togglePlayStop() {
+            if (isPlaying) {
+                stopPlayback();
+            } else {
+                await startPlayback();
+            }
+        }
+        
+        // Сетевые события — НИКАКИХ СООБЩЕНИЙ НА ЭКРАНЕ
+        window.addEventListener('online', function() {
+            console.log('Internet back');
+            if (isPlaying && audioElement) {
+                silentReconnect();
+            }
+        });
+        
+        window.addEventListener('offline', function() {
+            console.log('Internet lost - radio continues');
+            // Ничего не показываем, просто ждём восстановления
+        });
+        
         // Демо-визуализация (когда радио выключено)
         let demoAnimationId = null;
         function demoVisualization() {
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
             function drawDemo() {
-                if (isPlaying && analyserNode) {
+                if (analyserNode && isPlaying) {
                     if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
                     return;
                 }
@@ -501,7 +543,8 @@
             if (isPlaying) {
                 sessionStorage.setItem('radioWasPlaying', 'true');
             }
-            if (currentReader) currentReader.cancel();
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            if (audioElement) audioElement.pause();
             if (audioContext) audioContext.close();
             if (animationId) cancelAnimationFrame(animationId);
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
