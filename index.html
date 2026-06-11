@@ -102,6 +102,13 @@
             border-radius: 12px;
         }
 
+        .status-text {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
         @media (max-width: 480px) {
             .mobile-container {
                 padding: 8px 16px 16px 16px;
@@ -132,19 +139,11 @@
                 <canvas id="visualizerCanvas" width="800" height="180"></canvas>
             </div>
         </div>
+
+        <div class="status-text" id="statusText">Готов к воспроизведению</div>
     </div>
 
     <script>
-        // ============================================================
-        // РЕГИСТРАЦИЯ SERVICE WORKER
-        // ============================================================
-        
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('Service Worker registered', reg))
-                .catch(err => console.log('Service Worker error:', err));
-        }
-        
         // ============================================================
         // НАСТРОЙКИ РАДИО
         // ============================================================
@@ -157,20 +156,23 @@
         let gainNode = null;
         let animationId = null;
         let isPlaying = false;
-        let reconnectAttempt = 0;
-        let reconnectTimer = null;
         
         let dataArray = null;
         let canvasWidth = 800;
         let canvasHeight = 180;
         let prevValues = [];
         
-        // DOM элементы
         const playStopBtn = document.getElementById('playStopBtn');
         const btnIcon = document.getElementById('btnIcon');
         const btnText = document.getElementById('btnText');
+        const statusSpan = document.getElementById('statusText');
         const canvas = document.getElementById('visualizerCanvas');
         const ctx = canvas.getContext('2d');
+        
+        function updateStatus(msg, isError = false) {
+            statusSpan.textContent = msg;
+            statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
+        }
         
         function updateButtonUI(isRadioPlaying) {
             if (isRadioPlaying) {
@@ -319,101 +321,9 @@
             draw();
         }
         
-        // Функция переподключения БЕЗ вывода сообщений на экран
-        function silentReconnect() {
-            if (!isPlaying) return;
-            
-            if (reconnectTimer) clearTimeout(reconnectTimer);
-            
-            reconnectAttempt++;
-            
-            // Просто пытаемся переподключиться в фоне, без текста
-            if (audioElement) {
-                // Пробуем перезагрузить аудио без вывода сообщений
-                const currentSrc = audioElement.src;
-                if (currentSrc) {
-                    audioElement.load();
-                    audioElement.play().catch(() => {
-                        // Полная перезагрузка потока
-                        if (isPlaying) {
-                            const newAudio = new Audio();
-                            newAudio.crossOrigin = 'anonymous';
-                            newAudio.src = RADIO_STREAM_URL;
-                            
-                            const oldAudio = audioElement;
-                            audioElement = newAudio;
-                            
-                            if (oldAudio) {
-                                oldAudio.pause();
-                                oldAudio.src = '';
-                            }
-                            
-                            initWebAudioForRadio().then(() => {
-                                if (audioContext && audioContext.state === 'suspended') {
-                                    audioContext.resume();
-                                }
-                                audioElement.play().catch(e => console.log('Reconnect play error:', e));
-                            });
-                        }
-                    });
-                }
-            }
-            
-            // Если всё ещё не работает, пробуем через 5 секунд (без сообщений)
-            reconnectTimer = setTimeout(() => {
-                if (isPlaying && audioElement && audioElement.paused) {
-                    silentReconnect();
-                } else {
-                    reconnectAttempt = 0;
-                }
-            }, 5000);
-        }
-        
-        // ПЕРЕХВАТЫВАЕМ ВСЕ ОШИБКИ И БЛОКИРУЕМ СООБЩЕНИЯ О ПЕРЕПОДКЛЮЧЕНИИ
-        function setupSilentErrorHandling() {
-            if (!audioElement) return;
-            
-            // Перехватываем ошибки и тихо переподключаемся
-            audioElement.onerror = (e) => {
-                console.log('Audio error (silent):', e);
-                if (isPlaying) {
-                    silentReconnect();
-                }
-                return false; // Предотвращаем показ стандартной ошибки
-            };
-            
-            audioElement.onstalled = () => {
-                console.log('Audio stalled (silent)');
-                if (isPlaying) {
-                    silentReconnect();
-                }
-            };
-            
-            audioElement.onwaiting = () => {
-                // Буферизация — ничего не показываем
-                console.log('Buffering... (silent)');
-            };
-            
-            // Отключаем стандартные сообщения браузера
-            audioElement.setAttribute('x-webkit-airplay', 'deny');
-        }
-        
         async function startPlayback() {
             try {
-                reconnectAttempt = 0;
-                if (reconnectTimer) clearTimeout(reconnectTimer);
-                
-                if (audioElement && !isPlaying) {
-                    try {
-                        setupSilentErrorHandling();
-                        await audioElement.play();
-                        isPlaying = true;
-                        updateButtonUI(true);
-                        return;
-                    } catch(e) {
-                        console.log('Need to recreate audio');
-                    }
-                }
+                updateStatus('Подключение к потоку...');
                 
                 if (audioElement) {
                     audioElement.pause();
@@ -433,41 +343,25 @@
                 newAudio.preload = 'auto';
                 
                 audioElement = newAudio;
-                setupSilentErrorHandling();
                 
-                try {
-                    await initWebAudioForRadio();
-                    if (audioContext && audioContext.state === 'suspended') {
-                        await audioContext.resume();
-                    }
-                    await audioElement.play();
-                    isPlaying = true;
-                    updateButtonUI(true);
-                } catch (playError) {
-                    console.log('Play error:', playError);
-                    isPlaying = true;
-                    updateButtonUI(true);
-                    setTimeout(() => {
-                        if (audioElement && isPlaying) {
-                            audioElement.play().catch(e => console.log('Retry play:', e));
-                        }
-                    }, 2000);
+                await initWebAudioForRadio();
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
                 }
+                await audioElement.play();
+                isPlaying = true;
+                updateButtonUI(true);
+                updateStatus('▶ В эфире');
                 
             } catch (err) {
                 console.error('Start error:', err);
-                // Тихо переподключаемся
-                if (isPlaying) silentReconnect();
+                updateStatus('Ошибка подключения', true);
+                isPlaying = false;
+                updateButtonUI(false);
             }
         }
         
         function stopPlayback() {
-            if (reconnectTimer) {
-                clearTimeout(reconnectTimer);
-                reconnectTimer = null;
-            }
-            reconnectAttempt = 0;
-            
             if (audioElement) {
                 try {
                     audioElement.pause();
@@ -475,6 +369,7 @@
             }
             isPlaying = false;
             updateButtonUI(false);
+            updateStatus('Остановлено');
         }
         
         async function togglePlayStop() {
@@ -485,20 +380,6 @@
             }
         }
         
-        // Сетевые события — НИКАКИХ СООБЩЕНИЙ НА ЭКРАНЕ
-        window.addEventListener('online', function() {
-            console.log('Internet back');
-            if (isPlaying && audioElement) {
-                silentReconnect();
-            }
-        });
-        
-        window.addEventListener('offline', function() {
-            console.log('Internet lost - radio continues');
-            // Ничего не показываем, просто ждём восстановления
-        });
-        
-        // Демо-визуализация (когда радио выключено)
         let demoAnimationId = null;
         function demoVisualization() {
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
@@ -538,29 +419,14 @@
         
         playStopBtn.addEventListener('click', togglePlayStop);
         demoVisualization();
+        updateStatus('Нажмите PLAY');
         
         window.addEventListener('beforeunload', () => {
-            if (isPlaying) {
-                sessionStorage.setItem('radioWasPlaying', 'true');
-            }
-            if (reconnectTimer) clearTimeout(reconnectTimer);
             if (audioElement) audioElement.pause();
             if (audioContext) audioContext.close();
             if (animationId) cancelAnimationFrame(animationId);
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
         });
-        
-        if (sessionStorage.getItem('radioWasPlaying') === 'true') {
-            sessionStorage.removeItem('radioWasPlaying');
-            setTimeout(startPlayback, 500);
-        }
-        
-        if (navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({
-                type: 'PLAY_STATE',
-                isPlaying: isPlaying
-            });
-        }
     </script>
 </body>
 </html>
