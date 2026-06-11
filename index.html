@@ -102,42 +102,6 @@
             border-radius: 12px;
         }
 
-        .status-text {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        /* Стили для индикатора офлайн */
-        .offline-indicator {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            color: #ff6b6b;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            z-index: 9998;
-            display: none;
-            backdrop-filter: blur(5px);
-            pointer-events: none;
-        }
-        
-        .offline-indicator.show {
-            display: block;
-            animation: fadeInOut 2s ease;
-        }
-        
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
-            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-        }
-
         @media (max-width: 480px) {
             .mobile-container {
                 padding: 8px 16px 16px 16px;
@@ -154,9 +118,6 @@
     </style>
 </head>
 <body>
-    <!-- Маленький индикатор офлайн -->
-    <div id="offlineIndicator" class="offline-indicator">📡 Нет интернета, проверьте подключение</div>
-
     <div class="mobile-container">
         <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
 
@@ -171,13 +132,21 @@
                 <canvas id="visualizerCanvas" width="800" height="180"></canvas>
             </div>
         </div>
-
-        <div class="status-text" id="statusText">Готов к воспроизведению</div>
     </div>
 
     <script>
         // ============================================================
-        // НАСТРОЙКИ РАДИО (БЕЗ SERVICE WORKER)
+        // РЕГИСТРАЦИЯ SERVICE WORKER ДЛЯ ФОНОВОГО ВОСПРОИЗВЕДЕНИЯ
+        // ============================================================
+        
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registered', reg))
+                .catch(err => console.log('Service Worker error:', err));
+        }
+        
+        // ============================================================
+        // НАСТРОЙКИ РАДИО
         // ============================================================
         const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
         
@@ -198,16 +167,8 @@
         const playStopBtn = document.getElementById('playStopBtn');
         const btnIcon = document.getElementById('btnIcon');
         const btnText = document.getElementById('btnText');
-        const statusSpan = document.getElementById('statusText');
         const canvas = document.getElementById('visualizerCanvas');
         const ctx = canvas.getContext('2d');
-        const offlineIndicator = document.getElementById('offlineIndicator');
-        
-        function updateStatus(msg, isError = false) {
-            statusSpan.textContent = msg;
-            statusSpan.style.color = isError ? '#e74c3c' : '#1a1a2e';
-            console.log(msg);
-        }
         
         function updateButtonUI(isRadioPlaying) {
             if (isRadioPlaying) {
@@ -219,13 +180,6 @@
                 btnText.innerHTML = 'PLAY';
                 playStopBtn.classList.remove('playing');
             }
-        }
-        
-        function showOfflineMessage() {
-            offlineIndicator.classList.add('show');
-            setTimeout(() => {
-                offlineIndicator.classList.remove('show');
-            }, 3000);
         }
         
         function resizeCanvas() {
@@ -363,20 +317,19 @@
             draw();
         }
         
-        // Проверка интернета
-        function isOnline() {
-            return navigator.onLine;
-        }
-        
+        // ОСНОВНАЯ ФУНКЦИЯ - аудио НЕ ОСТАНАВЛИВАЕТСЯ при потере интернета
         async function startPlayback() {
-            if (!isOnline()) {
-                updateStatus('❌ Нет интернета', true);
-                showOfflineMessage();
-                return;
-            }
-            
             try {
-                updateStatus('🎧 Подключение к потоку...');
+                if (audioElement && !isPlaying) {
+                    try {
+                        await audioElement.play();
+                        isPlaying = true;
+                        updateButtonUI(true);
+                        return;
+                    } catch(e) {
+                        console.log('Need to recreate audio');
+                    }
+                }
                 
                 if (audioElement) {
                     audioElement.pause();
@@ -395,48 +348,29 @@
                 newAudio.src = RADIO_STREAM_URL;
                 newAudio.preload = 'auto';
                 
-                await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('Таймаут загрузки')), 15000);
-                    newAudio.addEventListener('canplay', () => {
-                        clearTimeout(timeout);
-                        resolve();
-                    }, { once: true });
-                    newAudio.addEventListener('error', () => {
-                        clearTimeout(timeout);
-                        reject(new Error('Ошибка загрузки потока'));
-                    }, { once: true });
-                    newAudio.load();
-                });
-                
                 audioElement = newAudio;
-                const webAudioOk = await initWebAudioForRadio();
-                if (!webAudioOk) throw new Error('Не удалось инициализировать аудио');
                 
-                if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
-                await audioElement.play();
-                isPlaying = true;
-                updateButtonUI(true);
-                updateStatus('🎵 В эфире');
-                
-                // Обработка ошибок при воспроизведении
-                audioElement.onerror = () => {
-                    if (isPlaying) {
-                        updateStatus('❌ Ошибка потока', true);
-                        isPlaying = false;
-                        updateButtonUI(false);
+                try {
+                    await initWebAudioForRadio();
+                    if (audioContext && audioContext.state === 'suspended') {
+                        await audioContext.resume();
                     }
-                };
+                    await audioElement.play();
+                    isPlaying = true;
+                    updateButtonUI(true);
+                } catch (playError) {
+                    console.log('Play error:', playError);
+                    isPlaying = true;
+                    updateButtonUI(true);
+                    setTimeout(() => {
+                        if (audioElement && isPlaying) {
+                            audioElement.play().catch(e => console.log('Retry play:', e));
+                        }
+                    }, 2000);
+                }
                 
             } catch (err) {
-                console.error(err);
-                updateStatus('❌ Ошибка: ' + err.message, true);
-                isPlaying = false;
-                updateButtonUI(false);
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.src = '';
-                    audioElement = null;
-                }
+                console.error('Start error:', err);
             }
         }
         
@@ -448,7 +382,6 @@
             }
             isPlaying = false;
             updateButtonUI(false);
-            updateStatus('⏹ Остановлено');
         }
         
         async function togglePlayStop() {
@@ -459,26 +392,24 @@
             }
         }
         
-        // Обработчики сети
+        // Обработчики сети - НЕ ОСТАНАВЛИВАЕМ РАДИО, НЕТ СООБЩЕНИЙ
         window.addEventListener('online', function() {
-            console.log('🌐 Интернет появился');
-            showOfflineMessage();
-            updateStatus('✅ Интернет восстановлен');
-        });
-        
-        window.addEventListener('offline', function() {
-            console.log('📡 Интернет пропал');
-            showOfflineMessage();
-            if (isPlaying) {
-                updateStatus('⚠️ Интернет пропал, радио остановится', true);
+            console.log('Интернет появился');
+            if (isPlaying && audioElement) {
+                audioElement.play().catch(e => console.log('Resume play:', e));
             }
         });
         
-        // Демо-визуализация
+        window.addEventListener('offline', function() {
+            console.log('Интернет пропал - радио продолжает играть');
+        });
+        
+        // Демо-визуализация (работает только когда радио выключено)
         let demoAnimationId = null;
         function demoVisualization() {
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
             function drawDemo() {
+                // Если радио включено и есть анализатор, выходим из демо
                 if (analyserNode && isPlaying) {
                     if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
                     return;
@@ -514,7 +445,6 @@
         
         playStopBtn.addEventListener('click', togglePlayStop);
         demoVisualization();
-        updateStatus('🎵 Нажмите PLAY');
         
         window.addEventListener('beforeunload', () => {
             if (isPlaying) {
@@ -526,10 +456,16 @@
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
         });
         
-        // Восстановление после перезагрузки
         if (sessionStorage.getItem('radioWasPlaying') === 'true') {
             sessionStorage.removeItem('radioWasPlaying');
             setTimeout(startPlayback, 500);
+        }
+        
+        if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                type: 'PLAY_STATE',
+                isPlaying: isPlaying
+            });
         }
     </script>
 </body>
