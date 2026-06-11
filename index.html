@@ -109,83 +109,6 @@
             font-weight: 500;
         }
 
-        /* Стили для заглушки офлайн */
-        .offline-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
-        .offline-content {
-            padding: 20px;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .offline-icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: bounce 1s ease infinite;
-        }
-
-        .offline-title {
-            font-size: 28px;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 10px;
-        }
-
-        .offline-message {
-            font-size: 16px;
-            color: rgba(255,255,255,0.9);
-            margin-bottom: 30px;
-            padding: 0 20px;
-        }
-
-        .retry-btn {
-            background: white;
-            color: #667eea;
-            border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        .retry-btn:active {
-            transform: scale(0.95);
-        }
-
-        .offline-footer {
-            position: absolute;
-            bottom: 30px;
-            left: 0;
-            right: 0;
-            color: rgba(255,255,255,0.6);
-            font-size: 12px;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
         @media (max-width: 480px) {
             .mobile-container {
                 padding: 8px 16px 16px 16px;
@@ -198,38 +121,10 @@
             canvas {
                 height: 150px;
             }
-            .offline-title {
-                font-size: 24px;
-            }
-            .offline-icon {
-                font-size: 60px;
-            }
-        }
-
-        /* Скрываем контент при офлайн режиме */
-        body.offline-mode .mobile-container {
-            filter: blur(5px);
-            pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <!-- Заглушка офлайн -->
-    <div id="offlineOverlay" class="offline-overlay">
-        <div class="offline-content">
-            <div class="offline-icon">🌐</div>
-            <div class="offline-title">Нет подключения к интернету</div>
-            <div class="offline-message">
-                Пожалуйста, проверьте ваше интернет-соединение<br>
-                и нажмите кнопку ниже
-            </div>
-            <button class="retry-btn" onclick="checkAndReload()">🔄 Повторить</button>
-            <div class="offline-footer">
-                RADIO DJ BOGA | Интернет Радио
-            </div>
-        </div>
-    </div>
-
     <div class="mobile-container">
         <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
 
@@ -249,69 +144,7 @@
     </div>
 
     <script>
-        // ============================================================
-        // ПРОВЕРКА ИНТЕРНЕТ СОЕДИНЕНИЯ
-        // ============================================================
-        
-        const offlineOverlay = document.getElementById('offlineOverlay');
-        
-        function showOfflineOverlay() {
-            offlineOverlay.style.display = 'flex';
-            document.body.classList.add('offline-mode');
-            if (isPlaying) {
-                stopPlayback();
-            }
-        }
-        
-        function hideOfflineOverlay() {
-            offlineOverlay.style.display = 'none';
-            document.body.classList.remove('offline-mode');
-        }
-        
-        function checkAndReload() {
-            if (navigator.onLine) {
-                location.reload();
-            } else {
-                const retryBtn = document.querySelector('.retry-btn');
-                const originalText = retryBtn.textContent;
-                retryBtn.textContent = '❌ Всё ещё нет интернета';
-                retryBtn.style.background = '#ff6b6b';
-                setTimeout(() => {
-                    retryBtn.textContent = originalText;
-                    retryBtn.style.background = 'white';
-                }, 2000);
-            }
-        }
-        
-        // Только показываем/скрываем заглушку, БЕЗ АВТО-ПЕРЕЗАГРУЗКИ
-        window.addEventListener('online', function() {
-            console.log('Интернет появился');
-            hideOfflineOverlay();
-            // НЕТ АВТОМАТИЧЕСКОЙ ПЕРЕЗАГРУЗКИ!
-        });
-        
-        window.addEventListener('offline', function() {
-            console.log('Интернет пропал');
-            showOfflineOverlay();
-        });
-        
-        // НЕТ ПЕРИОДИЧЕСКОЙ ПРОВЕРКИ!
-        
-        if (!navigator.onLine) {
-            showOfflineOverlay();
-        }
-        
-        // ============================================================
-        // НАСТРОЙКИ РАДИО
-        // ============================================================
         const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
-        
-        const playStopBtn = document.getElementById('playStopBtn');
-        const btnIcon = document.getElementById('btnIcon');
-        const btnText = document.getElementById('btnText');
-        const statusSpan = document.getElementById('statusText');
-        const canvas = document.getElementById('visualizerCanvas');
-        const ctx = canvas.getContext('2d');
         
         let audioElement = null;
         let audioContext = null;
@@ -325,6 +158,13 @@
         let canvasWidth = 800;
         let canvasHeight = 180;
         let prevValues = [];
+        
+        const playStopBtn = document.getElementById('playStopBtn');
+        const btnIcon = document.getElementById('btnIcon');
+        const btnText = document.getElementById('btnText');
+        const statusSpan = document.getElementById('statusText');
+        const canvas = document.getElementById('visualizerCanvas');
+        const ctx = canvas.getContext('2d');
         
         function updateStatus(msg, isError = false) {
             statusSpan.textContent = msg;
@@ -479,12 +319,6 @@
         }
         
         async function startPlayback() {
-            if (!navigator.onLine) {
-                updateStatus('Нет интернет соединения', true);
-                showOfflineOverlay();
-                return;
-            }
-            
             try {
                 updateStatus('Подключение к потоку...');
                 
