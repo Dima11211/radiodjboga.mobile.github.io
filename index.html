@@ -155,7 +155,7 @@
 </head>
 <body>
     <!-- Маленький индикатор офлайн -->
-    <div id="offlineIndicator" class="offline-indicator">📡 Нет интернета, радио продолжает играть</div>
+    <div id="offlineIndicator" class="offline-indicator">📡 Нет интернета, проверьте подключение</div>
 
     <div class="mobile-container">
         <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo-image">
@@ -177,17 +177,7 @@
 
     <script>
         // ============================================================
-        // РЕГИСТРАЦИЯ SERVICE WORKER ДЛЯ ФОНОВОГО ВОСПРОИЗВЕДЕНИЯ
-        // ============================================================
-        
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('Service Worker registered', reg))
-                .catch(err => console.log('Service Worker error:', err));
-        }
-        
-        // ============================================================
-        // НАСТРОЙКИ РАДИО
+        // НАСТРОЙКИ РАДИО (БЕЗ SERVICE WORKER)
         // ============================================================
         const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
         
@@ -373,22 +363,20 @@
             draw();
         }
         
-        // ОСНОВНАЯ ФУНКЦИЯ - аудио НЕ ОСТАНАВЛИВАЕТСЯ при потере интернета
+        // Проверка интернета
+        function isOnline() {
+            return navigator.onLine;
+        }
+        
         async function startPlayback() {
+            if (!isOnline()) {
+                updateStatus('❌ Нет интернета', true);
+                showOfflineMessage();
+                return;
+            }
+            
             try {
-                updateStatus('Подключение к потоку...');
-                
-                if (audioElement && !isPlaying) {
-                    try {
-                        await audioElement.play();
-                        isPlaying = true;
-                        updateButtonUI(true);
-                        updateStatus('▶ В эфире');
-                        return;
-                    } catch(e) {
-                        console.log('Need to recreate audio');
-                    }
-                }
+                updateStatus('🎧 Подключение к потоку...');
                 
                 if (audioElement) {
                     audioElement.pause();
@@ -407,32 +395,48 @@
                 newAudio.src = RADIO_STREAM_URL;
                 newAudio.preload = 'auto';
                 
-                audioElement = newAudio;
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Таймаут загрузки')), 15000);
+                    newAudio.addEventListener('canplay', () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    }, { once: true });
+                    newAudio.addEventListener('error', () => {
+                        clearTimeout(timeout);
+                        reject(new Error('Ошибка загрузки потока'));
+                    }, { once: true });
+                    newAudio.load();
+                });
                 
-                try {
-                    await initWebAudioForRadio();
-                    if (audioContext && audioContext.state === 'suspended') {
-                        await audioContext.resume();
+                audioElement = newAudio;
+                const webAudioOk = await initWebAudioForRadio();
+                if (!webAudioOk) throw new Error('Не удалось инициализировать аудио');
+                
+                if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
+                await audioElement.play();
+                isPlaying = true;
+                updateButtonUI(true);
+                updateStatus('🎵 В эфире');
+                
+                // Обработка ошибок при воспроизведении
+                audioElement.onerror = () => {
+                    if (isPlaying) {
+                        updateStatus('❌ Ошибка потока', true);
+                        isPlaying = false;
+                        updateButtonUI(false);
                     }
-                    await audioElement.play();
-                    isPlaying = true;
-                    updateButtonUI(true);
-                    updateStatus('▶ В эфире');
-                } catch (playError) {
-                    console.log('Play error:', playError);
-                    isPlaying = true;
-                    updateButtonUI(true);
-                    updateStatus('▶ Радио включено');
-                    setTimeout(() => {
-                        if (audioElement && isPlaying) {
-                            audioElement.play().catch(e => console.log('Retry play:', e));
-                        }
-                    }, 2000);
-                }
+                };
                 
             } catch (err) {
-                console.error('Start error:', err);
-                updateStatus('Поток буферизируется...');
+                console.error(err);
+                updateStatus('❌ Ошибка: ' + err.message, true);
+                isPlaying = false;
+                updateButtonUI(false);
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                    audioElement = null;
+                }
             }
         }
         
@@ -444,7 +448,7 @@
             }
             isPlaying = false;
             updateButtonUI(false);
-            updateStatus('Остановлено');
+            updateStatus('⏹ Остановлено');
         }
         
         async function togglePlayStop() {
@@ -455,18 +459,19 @@
             }
         }
         
-        // Обработчики сети - НЕ ОСТАНАВЛИВАЕМ РАДИО
+        // Обработчики сети
         window.addEventListener('online', function() {
             console.log('🌐 Интернет появился');
             showOfflineMessage();
-            if (isPlaying && audioElement) {
-                audioElement.play().catch(e => console.log('Resume play:', e));
-            }
+            updateStatus('✅ Интернет восстановлен');
         });
         
         window.addEventListener('offline', function() {
-            console.log('📡 Интернет пропал - радио продолжает играть');
+            console.log('📡 Интернет пропал');
             showOfflineMessage();
+            if (isPlaying) {
+                updateStatus('⚠️ Интернет пропал, радио остановится', true);
+            }
         });
         
         // Демо-визуализация
@@ -509,7 +514,7 @@
         
         playStopBtn.addEventListener('click', togglePlayStop);
         demoVisualization();
-        updateStatus('Нажмите PLAY');
+        updateStatus('🎵 Нажмите PLAY');
         
         window.addEventListener('beforeunload', () => {
             if (isPlaying) {
@@ -521,16 +526,10 @@
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
         });
         
+        // Восстановление после перезагрузки
         if (sessionStorage.getItem('radioWasPlaying') === 'true') {
             sessionStorage.removeItem('radioWasPlaying');
             setTimeout(startPlayback, 500);
-        }
-        
-        if (navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({
-                type: 'PLAY_STATE',
-                isPlaying: isPlaying
-            });
         }
     </script>
 </body>
