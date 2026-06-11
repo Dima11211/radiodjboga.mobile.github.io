@@ -146,17 +146,17 @@
         }
         
         // ============================================================
-        // НАСТРОЙКИ РАДИО
+        // НАСТРОЙКИ РАДИО - ЧЕРЕЗ FETCH + WEB AUDIO (БЕЗ СИСТЕМНЫХ СООБЩЕНИЙ)
         // ============================================================
         const RADIO_STREAM_URL = "https://radio.radiodjboga.online/stream";
         
-        let audioElement = null;
         let audioContext = null;
         let sourceNode = null;
         let analyserNode = null;
         let gainNode = null;
-        let animationId = null;
         let isPlaying = false;
+        let currentReader = null;
+        let animationId = null;
         
         let dataArray = null;
         let canvasWidth = 800;
@@ -199,35 +199,174 @@
         window.addEventListener('resize', () => setTimeout(resizeCanvas, 100));
         resizeCanvas();
         
-        async function initWebAudioForRadio() {
-            if (!audioElement) return false;
-            
+        async function initWebAudio() {
             if (audioContext && audioContext.state !== 'closed') {
-                if (animationId) cancelAnimationFrame(animationId);
-                try { await audioContext.close(); } catch(e) {}
+                return audioContext;
+            }
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyserNode = audioContext.createAnalyser();
+            analyserNode.fftSize = 256;
+            analyserNode.smoothingTimeConstant = 0.7;
+            gainNode = audioContext.createGain();
+            gainNode.gain.value = 0.8;
+            
+            analyserNode.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            const bufferLength = analyserNode.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+            prevValues = new Array(bufferLength).fill(0);
+            startVisualization();
+            return audioContext;
+        }
+        
+        async function playStream() {
+            if (isPlaying) return;
+            
+            // Останавливаем текущий поток
+            if (currentReader) {
+                try {
+                    await currentReader.cancel();
+                } catch(e) {}
+                currentReader = null;
+            }
+            if (sourceNode) {
+                try {
+                    sourceNode.disconnect();
+                } catch(e) {}
+                sourceNode = null;
             }
             
             try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                sourceNode = audioContext.createMediaElementSource(audioElement);
-                analyserNode = audioContext.createAnalyser();
-                analyserNode.fftSize = 256;
-                analyserNode.smoothingTimeConstant = 0.7;
-                gainNode = audioContext.createGain();
-                gainNode.gain.value = 0.8;
+                const context = await initWebAudio();
                 
-                sourceNode.connect(analyserNode);
-                analyserNode.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                // Запрашиваем поток
+                const response = await fetch(RADIO_STREAM_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!response.body) throw new Error('No response body');
                 
-                const bufferLength = analyserNode.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-                prevValues = new Array(bufferLength).fill(0);
-                startVisualization();
-                return true;
-            } catch (error) {
-                console.error("Web Audio ошибка:", error);
-                return false;
+                const reader = response.body.getReader();
+                currentReader = reader;
+                
+                // Создаем очередь для декодирования
+                let pendingBuffers = [];
+                let isDecoding = false;
+                let stopped = false;
+                
+                async function processChunk() {
+                    if (stopped) return;
+                    if (isDecoding) {
+                        setTimeout(processChunk, 50);
+                        return;
+                    }
+                    if (pendingBuffers.length === 0) {
+                        setTimeout(processChunk, 100);
+                        return;
+                    }
+                    isDecoding = true;
+                    const chunk = pendingBuffers.shift();
+                    try {
+                        const decoded = await context.decodeAudioData(chunk.buffer);
+                        if (!stopped && sourceNode === null && isPlaying) {
+                            sourceNode = context.createBufferSource();
+                            sourceNode.buffer = decoded;
+                            sourceNode.connect(analyserNode);
+                            sourceNode.onended = () => {
+                                if (isPlaying && !stopped) {
+                                    sourceNode = null;
+                                    processChunk();
+                                }
+                            };
+                            sourceNode.start();
+                        }
+                    } catch (e) {
+                        console.log('Decode error:', e);
+                    }
+                    isDecoding = false;
+                    if (pendingBuffers.length > 0 && !stopped) {
+                        processChunk();
+                    }
+                }
+                
+                // Читаем поток
+                async function readStream() {
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done || stopped) break;
+                            // Собираем MP3 куски в буфер
+                            if (value && value.length > 0) {
+                                const copy = new Uint8Array(value);
+                                pendingBuffers.push(copy);
+                                if (!isDecoding) processChunk();
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Stream read error:', e);
+                        if (isPlaying && !stopped) {
+                            // Переподключение без сообщений
+                            setTimeout(() => {
+                                if (isPlaying && !stopped) playStream();
+                            }, 2000);
+                        }
+                    }
+                }
+                
+                readStream();
+                
+            } catch (err) {
+                console.log('Connection error:', err);
+                if (isPlaying) {
+                    setTimeout(() => {
+                        if (isPlaying) playStream();
+                    }, 3000);
+                }
+            }
+        }
+        
+        async function startPlayback() {
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            updateButtonUI(true);
+            
+            try {
+                await initWebAudio();
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                await playStream();
+            } catch (err) {
+                console.log('Start error:', err);
+                if (isPlaying) {
+                    setTimeout(startPlayback, 1000);
+                }
+            }
+        }
+        
+        async function stopPlayback() {
+            isPlaying = false;
+            if (currentReader) {
+                try {
+                    await currentReader.cancel();
+                } catch(e) {}
+                currentReader = null;
+            }
+            if (sourceNode) {
+                try {
+                    sourceNode.stop();
+                    sourceNode.disconnect();
+                } catch(e) {}
+                sourceNode = null;
+            }
+            updateButtonUI(false);
+        }
+        
+        function togglePlayStop() {
+            if (isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
             }
         }
         
@@ -260,7 +399,7 @@
         function startVisualization() {
             if (animationId) cancelAnimationFrame(animationId);
             function draw() {
-                if (!analyserNode || !ctx) {
+                if (!analyserNode || !ctx || !isPlaying) {
                     animationId = requestAnimationFrame(draw);
                     return;
                 }
@@ -317,100 +456,12 @@
             draw();
         }
         
-        // ОСНОВНАЯ ФУНКЦИЯ - аудио НЕ ОСТАНАВЛИВАЕТСЯ при потере интернета
-        async function startPlayback() {
-            try {
-                if (audioElement && !isPlaying) {
-                    try {
-                        await audioElement.play();
-                        isPlaying = true;
-                        updateButtonUI(true);
-                        return;
-                    } catch(e) {
-                        console.log('Need to recreate audio');
-                    }
-                }
-                
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.src = '';
-                    audioElement = null;
-                }
-                if (audioContext && audioContext.state !== 'closed') {
-                    if (animationId) cancelAnimationFrame(animationId);
-                    try { await audioContext.close(); } catch(e) {}
-                    audioContext = null;
-                    analyserNode = null;
-                }
-                
-                const newAudio = new Audio();
-                newAudio.crossOrigin = 'anonymous';
-                newAudio.src = RADIO_STREAM_URL;
-                newAudio.preload = 'auto';
-                
-                audioElement = newAudio;
-                
-                try {
-                    await initWebAudioForRadio();
-                    if (audioContext && audioContext.state === 'suspended') {
-                        await audioContext.resume();
-                    }
-                    await audioElement.play();
-                    isPlaying = true;
-                    updateButtonUI(true);
-                } catch (playError) {
-                    console.log('Play error:', playError);
-                    isPlaying = true;
-                    updateButtonUI(true);
-                    setTimeout(() => {
-                        if (audioElement && isPlaying) {
-                            audioElement.play().catch(e => console.log('Retry play:', e));
-                        }
-                    }, 2000);
-                }
-                
-            } catch (err) {
-                console.error('Start error:', err);
-            }
-        }
-        
-        function stopPlayback() {
-            if (audioElement) {
-                try {
-                    audioElement.pause();
-                } catch(e) {}
-            }
-            isPlaying = false;
-            updateButtonUI(false);
-        }
-        
-        async function togglePlayStop() {
-            if (isPlaying) {
-                stopPlayback();
-            } else {
-                await startPlayback();
-            }
-        }
-        
-        // Обработчики сети - НЕ ОСТАНАВЛИВАЕМ РАДИО, НЕТ СООБЩЕНИЙ
-        window.addEventListener('online', function() {
-            console.log('Интернет появился');
-            if (isPlaying && audioElement) {
-                audioElement.play().catch(e => console.log('Resume play:', e));
-            }
-        });
-        
-        window.addEventListener('offline', function() {
-            console.log('Интернет пропал - радио продолжает играть');
-        });
-        
-        // Демо-визуализация (работает только когда радио выключено)
+        // Демо-визуализация (когда радио выключено)
         let demoAnimationId = null;
         function demoVisualization() {
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
             function drawDemo() {
-                // Если радио включено и есть анализатор, выходим из демо
-                if (analyserNode && isPlaying) {
+                if (isPlaying && analyserNode) {
                     if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
                     return;
                 }
@@ -450,7 +501,7 @@
             if (isPlaying) {
                 sessionStorage.setItem('radioWasPlaying', 'true');
             }
-            if (audioElement) audioElement.pause();
+            if (currentReader) currentReader.cancel();
             if (audioContext) audioContext.close();
             if (animationId) cancelAnimationFrame(animationId);
             if (demoAnimationId) cancelAnimationFrame(demoAnimationId);
