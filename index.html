@@ -85,14 +85,6 @@
             border-radius: 12px;
         }
 
-        .status {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: #1a1a2e;
-        }
-
         @media (max-width: 480px) {
             .container { padding: 15px; }
             .play-btn { width: 160px; font-size: 1rem; }
@@ -112,8 +104,6 @@
                 <canvas id="vizCanvas" width="800" height="180"></canvas>
             </div>
         </div>
-
-        <div class="status" id="statusText">Готов к воспроизведению</div>
     </div>
 
     <script>
@@ -139,14 +129,8 @@
         let prevVals = [];
         
         const playBtn = document.getElementById('playBtn');
-        const statusSpan = document.getElementById('statusText');
         const canvas = document.getElementById('vizCanvas');
         const ctx = canvas.getContext('2d');
-        
-        function setStatus(msg, isErr = false) {
-            statusSpan.textContent = msg;
-            statusSpan.style.color = isErr ? '#e74c3c' : '#1a1a2e';
-        }
         
         function resizeCanvas() {
             const w = canvas.parentElement.clientWidth - 32;
@@ -271,8 +255,6 @@
         
         async function startRadio() {
             try {
-                setStatus('Подключение...');
-                
                 if (audio) {
                     audio.pause();
                     audio.src = '';
@@ -306,11 +288,9 @@
                 isPlaying = true;
                 playBtn.innerHTML = '⏹ STOP';
                 playBtn.classList.add('playing');
-                setStatus('В эфире');
                 
             } catch (err) {
                 console.error(err);
-                setStatus('Ошибка', true);
                 isPlaying = false;
                 playBtn.innerHTML = '▶ PLAY';
                 playBtn.classList.remove('playing');
@@ -323,7 +303,6 @@
             isPlaying = false;
             playBtn.innerHTML = '▶ PLAY';
             playBtn.classList.remove('playing');
-            setStatus('Остановлено');
         }
         
         function toggle() {
@@ -370,7 +349,6 @@
         
         playBtn.addEventListener('click', toggle);
         demoViz();
-        setStatus('Нажмите PLAY');
         
         window.addEventListener('beforeunload', () => {
             if (audio) audio.pause();
