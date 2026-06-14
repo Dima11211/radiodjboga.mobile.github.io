@@ -21,14 +21,14 @@
             width: 100%;
             max-width: 480px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 10px 20px 20px 20px;  /* Уменьшил верхний отступ с 20px до 10px */
         }
 
         .logo {
             width: 100%;
             height: auto;
             display: block;
-            margin-bottom: 20px;
+            margin-bottom: 12px;  /* Было 20px, уменьшил до 12px */
         }
 
         .player {
@@ -38,28 +38,28 @@
             box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
         }
 
-        /* УМЕНЬШЕННАЯ ВЕРХНЯЯ ЧАСТЬ С КНОПКОЙ */
+        /* Верхняя часть с кнопкой - сделал чуть больше */
         .button-wrapper {
             display: flex;
             justify-content: center;
-            padding: 10px 0;  /* Было 20px, уменьшил до 10px */
+            padding: 14px 0;  /* Было 10px, увеличил до 14px */
             background: #03fff7;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.5);  /* Было 2px, уменьшил */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
         }
 
-        /* УМЕНЬШЕННАЯ КНОПКА */
+        /* Кнопка - сделал чуть больше */
         .play-btn {
             background: linear-gradient(135deg, #8b0000, #5a0000);
             border: none;
-            width: 140px;      /* Было 200px */
-            padding: 8px 0;    /* Было 12px */
+            width: 150px;      /* Было 140px, увеличил до 150px */
+            padding: 10px 0;   /* Было 8px, увеличил до 10px */
             border-radius: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             color: white;
-            font-size: 1rem;   /* Было 1.2rem */
+            font-size: 1.05rem;   /* Было 1rem, увеличил */
             font-weight: 600;
             transition: all 0.3s ease;
             box-shadow: 0 4px 12px rgba(139, 0, 0, 0.4);
@@ -157,10 +157,11 @@
         }
 
         @media (max-width: 480px) {
-            .container { padding: 15px; }
-            .play-btn { width: 120px; font-size: 0.9rem; padding: 6px 0; }
+            .container { padding: 8px 15px 15px 15px; }  /* Ещё меньше на мобильных */
+            .logo { margin-bottom: 10px; }
+            .play-btn { width: 130px; font-size: 0.95rem; padding: 8px 0; }
+            .button-wrapper { padding: 12px 0; }
             canvas { height: 150px; }
-            .button-wrapper { padding: 8px 0; }
             .offline-title { font-size: 24px; }
             .offline-icon { font-size: 60px; }
         }
