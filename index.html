@@ -85,14 +85,115 @@
             border-radius: 12px;
         }
 
+        /* ===== СТИЛИ ДЛЯ ЗАГЛУШКИ ОФЛАЙН ===== */
+        .offline-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .offline-content {
+            padding: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .offline-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 1s ease infinite;
+        }
+
+        .offline-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .offline-message {
+            font-size: 16px;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 30px;
+            padding: 0 20px;
+        }
+
+        .retry-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .retry-btn:active {
+            transform: scale(0.95);
+        }
+
+        .offline-footer {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            right: 0;
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Скрываем контент при офлайн режиме */
+        body.offline-mode .container {
+            filter: blur(5px);
+            pointer-events: none;
+        }
+
         @media (max-width: 480px) {
             .container { padding: 15px; }
             .play-btn { width: 160px; font-size: 1rem; }
             canvas { height: 150px; }
+            .offline-title { font-size: 24px; }
+            .offline-icon { font-size: 60px; }
         }
     </style>
 </head>
 <body>
+    <!-- Заглушка офлайн -->
+    <div id="offlineOverlay" class="offline-overlay">
+        <div class="offline-content">
+            <div class="offline-icon">🌐</div>
+            <div class="offline-title">Нет подключения к интернету</div>
+            <div class="offline-message">
+                Пожалуйста, проверьте ваше интернет-соединение<br>
+                и нажмите кнопку ниже
+            </div>
+            <button class="retry-btn" onclick="checkAndReload()">🔄 Повторить</button>
+            <div class="offline-footer">
+                RADIO DJ BOGA | Интернет Радио
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo">
 
@@ -107,6 +208,83 @@
     </div>
 
     <script>
+        // ============================================================
+        // ПРОВЕРКА ИНТЕРНЕТА И ПОКАЗ ЗАГЛУШКИ
+        // ============================================================
+        
+        const offlineOverlay = document.getElementById('offlineOverlay');
+        let wasPlayingBeforeOffline = false;
+        let audioElement = null;
+        
+        // Функция показа заглушки
+        function showOfflineOverlay() {
+            offlineOverlay.style.display = 'flex';
+            document.body.classList.add('offline-mode');
+            // Останавливаем воспроизведение если играло
+            if (isPlaying && audioElement) {
+                wasPlayingBeforeOffline = true;
+                audioElement.pause();
+            }
+        }
+        
+        // Функция скрытия заглушки
+        function hideOfflineOverlay() {
+            offlineOverlay.style.display = 'none';
+            document.body.classList.remove('offline-mode');
+        }
+        
+        // Проверка соединения и перезагрузка
+        function checkAndReload() {
+            if (navigator.onLine) {
+                location.reload();
+            } else {
+                const retryBtn = document.querySelector('.retry-btn');
+                const originalText = retryBtn.textContent;
+                retryBtn.textContent = '❌ Всё ещё нет интернета';
+                retryBtn.style.background = '#ff6b6b';
+                setTimeout(() => {
+                    retryBtn.textContent = originalText;
+                    retryBtn.style.background = 'white';
+                }, 2000);
+            }
+        }
+        
+        // Обработчики изменения состояния сети
+        window.addEventListener('online', function() {
+            console.log('Интернет появился');
+            hideOfflineOverlay();
+            // Автоматически перезагружаем страницу через 1 секунду
+            setTimeout(() => {
+                if (navigator.onLine) {
+                    location.reload();
+                }
+            }, 1000);
+        });
+        
+        window.addEventListener('offline', function() {
+            console.log('Интернет пропал');
+            showOfflineOverlay();
+        });
+        
+        // Периодическая проверка соединения (каждые 3 секунды)
+        setInterval(function() {
+            if (!navigator.onLine && offlineOverlay.style.display !== 'flex') {
+                showOfflineOverlay();
+            } else if (navigator.onLine && offlineOverlay.style.display === 'flex') {
+                hideOfflineOverlay();
+                location.reload();
+            }
+        }, 3000);
+        
+        // Проверка при загрузке страницы
+        if (!navigator.onLine) {
+            showOfflineOverlay();
+        }
+        
+        // ============================================================
+        // РАДИО ПЛЕЕР
+        // ============================================================
+        
         // Регистрация Service Worker для фонового режима
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js')
@@ -254,6 +432,12 @@
         }
         
         async function startRadio() {
+            // Проверяем интернет перед воспроизведением
+            if (!navigator.onLine) {
+                showOfflineOverlay();
+                return;
+            }
+            
             try {
                 if (audio) {
                     audio.pause();
@@ -280,6 +464,7 @@
                 });
                 
                 audio = newAudio;
+                audioElement = audio;
                 const ok = await initAudio();
                 if (!ok) throw new Error('Ошибка звука');
                 
