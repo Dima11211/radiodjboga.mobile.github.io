@@ -38,30 +38,32 @@
             box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
         }
 
+        /* УМЕНЬШЕННАЯ ВЕРХНЯЯ ЧАСТЬ С КНОПКОЙ */
         .button-wrapper {
             display: flex;
             justify-content: center;
-            padding: 20px 0;
+            padding: 10px 0;  /* Было 20px, уменьшил до 10px */
             background: #03fff7;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);  /* Было 2px, уменьшил */
         }
 
+        /* УМЕНЬШЕННАЯ КНОПКА */
         .play-btn {
             background: linear-gradient(135deg, #8b0000, #5a0000);
             border: none;
-            width: 200px;
-            padding: 12px 0;
-            border-radius: 50px;
+            width: 140px;      /* Было 200px */
+            padding: 8px 0;    /* Было 12px */
+            border-radius: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1rem;   /* Было 1.2rem */
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(139, 0, 0, 0.4);
-            gap: 12px;
+            box-shadow: 0 4px 12px rgba(139, 0, 0, 0.4);
+            gap: 8px;
         }
 
         .play-btn:active {
@@ -85,7 +87,7 @@
             border-radius: 12px;
         }
 
-        /* ===== СТИЛИ ДЛЯ ЗАГЛУШКИ ОФЛАЙН ===== */
+        /* Стили для заглушки офлайн */
         .offline-overlay {
             display: none;
             position: fixed;
@@ -98,7 +100,6 @@
             justify-content: center;
             align-items: center;
             text-align: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         .offline-content {
@@ -123,7 +124,6 @@
             font-size: 16px;
             color: rgba(255,255,255,0.9);
             margin-bottom: 30px;
-            padding: 0 20px;
         }
 
         .retry-btn {
@@ -135,21 +135,10 @@
             font-weight: bold;
             border-radius: 25px;
             cursor: pointer;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
         .retry-btn:active {
             transform: scale(0.95);
-        }
-
-        .offline-footer {
-            position: absolute;
-            bottom: 30px;
-            left: 0;
-            right: 0;
-            color: rgba(255,255,255,0.6);
-            font-size: 12px;
         }
 
         @keyframes fadeIn {
@@ -162,7 +151,6 @@
             50% { transform: translateY(-10px); }
         }
 
-        /* Скрываем контент при офлайн режиме */
         body.offline-mode .container {
             filter: blur(5px);
             pointer-events: none;
@@ -170,8 +158,9 @@
 
         @media (max-width: 480px) {
             .container { padding: 15px; }
-            .play-btn { width: 160px; font-size: 1rem; }
+            .play-btn { width: 120px; font-size: 0.9rem; padding: 6px 0; }
             canvas { height: 150px; }
+            .button-wrapper { padding: 8px 0; }
             .offline-title { font-size: 24px; }
             .offline-icon { font-size: 60px; }
         }
@@ -188,9 +177,6 @@
                 и нажмите кнопку ниже
             </div>
             <button class="retry-btn" onclick="checkAndReload()">🔄 Повторить</button>
-            <div class="offline-footer">
-                RADIO DJ BOGA | Интернет Радио
-            </div>
         </div>
     </div>
 
@@ -213,27 +199,20 @@
         // ============================================================
         
         const offlineOverlay = document.getElementById('offlineOverlay');
-        let wasPlayingBeforeOffline = false;
-        let audioElement = null;
         
-        // Функция показа заглушки
         function showOfflineOverlay() {
             offlineOverlay.style.display = 'flex';
             document.body.classList.add('offline-mode');
-            // Останавливаем воспроизведение если играло
-            if (isPlaying && audioElement) {
-                wasPlayingBeforeOffline = true;
-                audioElement.pause();
+            if (isPlaying && audio) {
+                audio.pause();
             }
         }
         
-        // Функция скрытия заглушки
         function hideOfflineOverlay() {
             offlineOverlay.style.display = 'none';
             document.body.classList.remove('offline-mode');
         }
         
-        // Проверка соединения и перезагрузка
         function checkAndReload() {
             if (navigator.onLine) {
                 location.reload();
@@ -249,24 +228,17 @@
             }
         }
         
-        // Обработчики изменения состояния сети
         window.addEventListener('online', function() {
-            console.log('Интернет появился');
             hideOfflineOverlay();
-            // Автоматически перезагружаем страницу через 1 секунду
             setTimeout(() => {
-                if (navigator.onLine) {
-                    location.reload();
-                }
+                if (navigator.onLine) location.reload();
             }, 1000);
         });
         
         window.addEventListener('offline', function() {
-            console.log('Интернет пропал');
             showOfflineOverlay();
         });
         
-        // Периодическая проверка соединения (каждые 3 секунды)
         setInterval(function() {
             if (!navigator.onLine && offlineOverlay.style.display !== 'flex') {
                 showOfflineOverlay();
@@ -276,7 +248,6 @@
             }
         }, 3000);
         
-        // Проверка при загрузке страницы
         if (!navigator.onLine) {
             showOfflineOverlay();
         }
@@ -432,7 +403,6 @@
         }
         
         async function startRadio() {
-            // Проверяем интернет перед воспроизведением
             if (!navigator.onLine) {
                 showOfflineOverlay();
                 return;
@@ -464,7 +434,6 @@
                 });
                 
                 audio = newAudio;
-                audioElement = audio;
                 const ok = await initAudio();
                 if (!ok) throw new Error('Ошибка звука');
                 
