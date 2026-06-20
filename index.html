@@ -85,6 +85,7 @@
             border-radius: 12px;
         }
 
+        /* Стили для заглушки офлайн */
         .offline-overlay {
             display: none;
             position: fixed;
@@ -165,7 +166,6 @@
     </style>
 </head>
 <body>
-
     <!-- Заглушка офлайн -->
     <div id="offlineOverlay" class="offline-overlay">
         <div class="offline-content">
@@ -194,17 +194,7 @@
 
     <script>
         // ============================================================
-        // 1. РЕГИСТРАЦИЯ SERVICE WORKER (для кэширования аудио)
-        // ============================================================
-        
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('✅ SW registered', reg))
-                .catch(err => console.log('❌ SW error:', err));
-        }
-
-        // ============================================================
-        // 2. ПРОВЕРКА ИНТЕРНЕТА И ПОКАЗ ЗАГЛУШКИ
+        // ПРОВЕРКА ИНТЕРНЕТА И ПОКАЗ ЗАГЛУШКИ
         // ============================================================
         
         const offlineOverlay = document.getElementById('offlineOverlay');
@@ -260,11 +250,11 @@
         if (!navigator.onLine) {
             showOfflineOverlay();
         }
-
+        
         // ============================================================
-        // 3. РАДИО ПЛЕЕР
+        // РАДИО ПЛЕЕР
         // ============================================================
-
+        
         const STREAM_URL = "https://radio.radiodjboga.online/stream";
         
         let audio = null;
