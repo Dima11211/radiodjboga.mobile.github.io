@@ -1,507 +1,87 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>RADIO DJ BOGA | Интернет Радио</title>
+// В начале файла
+function getStreamUrl() {
+    return "https://radio.radiodjboga.online/stream?_=" + Date.now();
+}
+
+async function startRadio() {
+    if (!navigator.onLine) {
+        showOfflineOverlay();
+        return;
+    }
     
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+    try {
+        // Полная очистка старого
+        if (audio) {
+            audio.pause();
+            audio.src = '';
+            audio.load();
+            audio = null;
         }
-
-        body {
-            background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f5 100%);
-            min-height: 100vh;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 480px;
-            margin: 0 auto;
-            padding: 10px 20px 20px 20px;
-        }
-
-        .logo {
-            width: 100%;
-            height: auto;
-            display: block;
-            margin-bottom: 12px;
-        }
-
-        .player {
-            background: #03fff7;
-            border-radius: 0;
-            overflow: hidden;
-            box-shadow: 0 12px 28px rgba(3, 255, 247, 0.2);
-        }
-
-        .button-wrapper {
-            display: flex;
-            justify-content: center;
-            padding: 14px 0;
-            background: #03fff7;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-        }
-
-        .play-btn {
-            background: linear-gradient(135deg, #8b0000, #5a0000);
-            border: none;
-            width: 150px;
-            padding: 10px 0;
-            border-radius: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: white;
-            font-size: 1.05rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(139, 0, 0, 0.4);
-            gap: 8px;
-        }
-
-        .play-btn:active {
-            transform: scale(0.96);
-        }
-
-        .play-btn.playing {
-            background: linear-gradient(135deg, #2c2c2c, #1a1a1a);
-        }
-
-        .viz-wrapper {
-            background: rgba(0, 0, 0, 0.15);
-            padding: 20px 16px;
-        }
-
-        canvas {
-            width: 100%;
-            height: 180px;
-            display: block;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 12px;
-        }
-
-        /* Стили для заглушки офлайн */
-        .offline-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-
-        .offline-content {
-            padding: 20px;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .offline-icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: bounce 1s ease infinite;
-        }
-
-        .offline-title {
-            font-size: 28px;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 10px;
-        }
-
-        .offline-message {
-            font-size: 16px;
-            color: rgba(255,255,255,0.9);
-            margin-bottom: 30px;
-        }
-
-        .retry-btn {
-            background: white;
-            color: #667eea;
-            border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 25px;
-            cursor: pointer;
-        }
-
-        .retry-btn:active {
-            transform: scale(0.95);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
-        body.offline-mode .container {
-            filter: blur(5px);
-            pointer-events: none;
-        }
-
-        @media (max-width: 480px) {
-            .container { padding: 8px 15px 15px 15px; }
-            .logo { margin-bottom: 10px; }
-            .play-btn { width: 130px; font-size: 0.95rem; padding: 8px 0; }
-            .button-wrapper { padding: 12px 0; }
-            canvas { height: 150px; }
-            .offline-title { font-size: 24px; }
-            .offline-icon { font-size: 60px; }
-        }
-    </style>
-</head>
-<body>
-    <!-- Заглушка офлайн -->
-    <div id="offlineOverlay" class="offline-overlay">
-        <div class="offline-content">
-            <div class="offline-icon">🌐</div>
-            <div class="offline-title">Нет подключения к интернету</div>
-            <div class="offline-message">
-                Пожалуйста, проверьте ваше интернет-соединение<br>
-                и нажмите кнопку ниже
-            </div>
-            <button class="retry-btn" onclick="checkAndReload()">🔄 Повторить</button>
-        </div>
-    </div>
-
-    <div class="container">
-        <img src="img/20260225_2221_image.png" alt="RADIO DJ BOGA" class="logo">
-
-        <div class="player">
-            <div class="button-wrapper">
-                <button class="play-btn" id="playBtn">▶ PLAY</button>
-            </div>
-            <div class="viz-wrapper">
-                <canvas id="vizCanvas" width="800" height="180"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ============================================================
-        // ПРОВЕРКА ИНТЕРНЕТА И ПОКАЗ ЗАГЛУШКИ
-        // ============================================================
-        
-        const offlineOverlay = document.getElementById('offlineOverlay');
-        
-        function showOfflineOverlay() {
-            offlineOverlay.style.display = 'flex';
-            document.body.classList.add('offline-mode');
-            if (isPlaying && audio) {
-                audio.pause();
-            }
-        }
-        
-        function hideOfflineOverlay() {
-            offlineOverlay.style.display = 'none';
-            document.body.classList.remove('offline-mode');
-        }
-        
-        function checkAndReload() {
-            if (navigator.onLine) {
-                location.reload();
-            } else {
-                const retryBtn = document.querySelector('.retry-btn');
-                const originalText = retryBtn.textContent;
-                retryBtn.textContent = '❌ Всё ещё нет интернета';
-                retryBtn.style.background = '#ff6b6b';
-                setTimeout(() => {
-                    retryBtn.textContent = originalText;
-                    retryBtn.style.background = 'white';
-                }, 2000);
-            }
-        }
-        
-        window.addEventListener('online', function() {
-            hideOfflineOverlay();
-            setTimeout(() => {
-                if (navigator.onLine) location.reload();
-            }, 1000);
-        });
-        
-        window.addEventListener('offline', function() {
-            showOfflineOverlay();
-        });
-        
-        setInterval(function() {
-            if (!navigator.onLine && offlineOverlay.style.display !== 'flex') {
-                showOfflineOverlay();
-            } else if (navigator.onLine && offlineOverlay.style.display === 'flex') {
-                hideOfflineOverlay();
-                location.reload();
-            }
-        }, 3000);
-        
-        if (!navigator.onLine) {
-            showOfflineOverlay();
-        }
-        
-        // ============================================================
-        // РАДИО ПЛЕЕР
-        // ============================================================
-        
-        const STREAM_URL = "https://radio.radiodjboga.online/stream";
-        
-        let audio = null;
-        let ctxAudio = null;
-        let source = null;
-        let analyser = null;
-        let animation = null;
-        let isPlaying = false;
-        
-        let freqData = null;
-        let canvasW = 800;
-        let canvasH = 180;
-        let prevVals = [];
-        
-        const playBtn = document.getElementById('playBtn');
-        const canvas = document.getElementById('vizCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        function resizeCanvas() {
-            const w = canvas.parentElement.clientWidth - 32;
-            canvas.width = w;
-            canvas.height = 180;
-            canvasW = canvas.width;
-            canvasH = canvas.height;
-            if (analyser) {
-                const len = analyser.frequencyBinCount;
-                freqData = new Uint8Array(len);
-                prevVals = new Array(len).fill(0);
-            }
-        }
-        
-        window.addEventListener('resize', () => setTimeout(resizeCanvas, 100));
-        resizeCanvas();
-        
-        async function initAudio() {
-            if (!audio) return false;
-            
-            if (ctxAudio && ctxAudio.state !== 'closed') {
-                if (animation) cancelAnimationFrame(animation);
-                try { await ctxAudio.close(); } catch(e) {}
-            }
-            
-            try {
-                ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
-                source = ctxAudio.createMediaElementSource(audio);
-                analyser = ctxAudio.createAnalyser();
-                analyser.fftSize = 256;
-                analyser.smoothingTimeConstant = 0.7;
-                const gain = ctxAudio.createGain();
-                gain.gain.value = 0.8;
-                
-                source.connect(analyser);
-                analyser.connect(gain);
-                gain.connect(ctxAudio.destination);
-                
-                const len = analyser.frequencyBinCount;
-                freqData = new Uint8Array(len);
-                prevVals = new Array(len).fill(0);
-                startViz();
-                return true;
-            } catch (err) {
-                console.error(err);
-                return false;
-            }
-        }
-        
-        function getColor(pct, isPeak = false) {
-            let hue;
-            if (pct < 0.16) hue = 120 - (pct / 0.16) * 60;
-            else if (pct < 0.33) hue = 60 - ((pct - 0.16) / 0.17) * 30;
-            else if (pct < 0.5) hue = 30 - ((pct - 0.33) / 0.17) * 15;
-            else if (pct < 0.66) hue = 15 - ((pct - 0.5) / 0.16) * 15;
-            else if (pct < 0.83) hue = 0 - ((pct - 0.66) / 0.17) * 60;
-            else hue = 300 - ((pct - 0.83) / 0.17) * 60;
-            if (pct > 0.95) hue = 240;
-            let sat = 85, light = 50;
-            if (isPeak && pct > 0.8) { light = 65; sat = 95; }
-            if (hue < 0) hue += 360;
-            return `hsl(${hue}, ${sat}%, ${light}%)`;
-        }
-        
-        function startViz() {
+        if (ctxAudio && ctxAudio.state !== 'closed') {
             if (animation) cancelAnimationFrame(animation);
-            function draw() {
-                if (!analyser || !ctx) {
-                    animation = requestAnimationFrame(draw);
-                    return;
-                }
-                if (freqData) analyser.getByteFrequencyData(freqData);
-                ctx.clearRect(0, 0, canvasW, canvasH);
-                
-                const bars = analyser.frequencyBinCount;
-                const half = bars / 2;
-                let max = 0;
-                for (let i = 0; i < bars; i++) if (freqData[i] > max) max = freqData[i];
-                if (max < 1) max = 255;
-                
-                const boosted = [];
-                for (let i = 0; i < bars; i++) {
-                    const dist = Math.abs(i - half) / half;
-                    const weight = 1 - dist;
-                    boosted[i] = Math.min(255, freqData[i] * (0.5 + weight * 0.8));
-                }
-                
-                for (let i = 0; i < bars; i++) {
-                    let val = boosted[i] || 0;
-                    let pct = val / max;
-                    let h = Math.max(4, pct * canvasH * 0.85);
-                    if (prevVals[i]) h = prevVals[i] * 0.6 + h * 0.4;
-                    prevVals[i] = h;
-                    
-                    const x = i * (canvasW / bars);
-                    const w = Math.max(6, (canvasW / bars) * 1.6);
-                    const isPeak = val > 180;
-                    const grad = ctx.createLinearGradient(x, canvasH - h, x, canvasH);
-                    grad.addColorStop(0, getColor(0));
-                    grad.addColorStop(0.16, getColor(0.16));
-                    grad.addColorStop(0.33, getColor(0.33));
-                    grad.addColorStop(0.5, getColor(0.5));
-                    grad.addColorStop(0.66, getColor(0.66));
-                    grad.addColorStop(0.83, getColor(0.83));
-                    grad.addColorStop(1, getColor(1, isPeak));
-                    
-                    ctx.fillStyle = grad;
-                    ctx.shadowBlur = isPeak ? 10 : 4;
-                    ctx.shadowColor = isPeak ? '#ff3300' : '#ff8c00';
-                    ctx.fillRect(x + 1, canvasH - h, w - 1, h);
-                    
-                    if (isPeak && h > 15) {
-                        ctx.fillStyle = `rgba(100, 100, 255, 0.6)`;
-                        ctx.fillRect(x + 1, canvasH - h - 2, w - 1, 4);
-                    }
-                }
-                ctx.shadowBlur = 0;
-                animation = requestAnimationFrame(draw);
-            }
-            draw();
+            try { await ctxAudio.close(); } catch(e) {}
+            ctxAudio = null;
+            analyser = null;
         }
         
-        async function startRadio() {
-            if (!navigator.onLine) {
-                showOfflineOverlay();
-                return;
-            }
-            
-            try {
-                if (audio) {
-                    audio.pause();
-                    audio.src = '';
-                    audio = null;
-                }
-                if (ctxAudio && ctxAudio.state !== 'closed') {
-                    if (animation) cancelAnimationFrame(animation);
-                    try { await ctxAudio.close(); } catch(e) {}
-                    ctxAudio = null;
-                    analyser = null;
-                }
-                
-                const newAudio = new Audio();
-                newAudio.crossOrigin = 'anonymous';
-                newAudio.src = STREAM_URL;
-                newAudio.preload = 'auto';
-                
-                await new Promise((resolve, reject) => {
-                    const tm = setTimeout(() => reject('Таймаут'), 15000);
-                    newAudio.addEventListener('canplay', () => { clearTimeout(tm); resolve(); }, { once: true });
-                    newAudio.addEventListener('error', () => { clearTimeout(tm); reject('Ошибка'); }, { once: true });
-                    newAudio.load();
-                });
-                
-                audio = newAudio;
-                const ok = await initAudio();
-                if (!ok) throw new Error('Ошибка звука');
-                
-                if (ctxAudio && ctxAudio.state === 'suspended') await ctxAudio.resume();
-                await audio.play();
-                isPlaying = true;
-                playBtn.innerHTML = '⏹ STOP';
-                playBtn.classList.add('playing');
-                
-            } catch (err) {
-                console.error(err);
-                isPlaying = false;
-                playBtn.innerHTML = '▶ PLAY';
-                playBtn.classList.remove('playing');
-                if (audio) { audio.pause(); audio.src = ''; audio = null; }
-            }
-        }
+        const newAudio = new Audio();
+        newAudio.crossOrigin = 'anonymous';
+        newAudio.src = getStreamUrl(); // Случайный параметр
+        newAudio.preload = 'none'; // Не кэшировать
         
-        function stopRadio() {
-            if (audio) audio.pause();
-            isPlaying = false;
-            playBtn.innerHTML = '▶ PLAY';
-            playBtn.classList.remove('playing');
-        }
-        
-        function toggle() {
-            if (isPlaying) stopRadio();
-            else startRadio();
-        }
-        
-        let demoAnim = null;
-        function demoViz() {
-            if (demoAnim) cancelAnimationFrame(demoAnim);
-            function draw() {
-                if (analyser && isPlaying) {
-                    if (demoAnim) cancelAnimationFrame(demoAnim);
-                    return;
-                }
-                ctx.clearRect(0, 0, canvasW, canvasH);
-                const bars = 48;
-                const half = bars / 2;
-                const time = Date.now() * 0.005;
-                for (let i = 0; i < bars; i++) {
-                    const dist = Math.abs(i - half) / half;
-                    const boost = Math.cos(dist * Math.PI / 2);
-                    let h = 20 + Math.sin(time + i * 0.2) * 15;
-                    h = h * (0.3 + boost * 0.9);
-                    h = Math.min(canvasH * 0.6, Math.max(5, h));
-                    const x = i * (canvasW / bars);
-                    const w = Math.max(6, (canvasW / bars) * 1.6);
-                    const grad = ctx.createLinearGradient(x, canvasH - h, x, canvasH);
-                    grad.addColorStop(0, '#00ff00');
-                    grad.addColorStop(0.25, '#ffff00');
-                    grad.addColorStop(0.5, '#ff8800');
-                    grad.addColorStop(0.75, '#ff0000');
-                    grad.addColorStop(1, '#0000aa');
-                    ctx.fillStyle = grad;
-                    ctx.shadowBlur = 4;
-                    ctx.shadowColor = '#8888ff';
-                    ctx.fillRect(x + 1, canvasH - h, w - 1, h);
-                }
-                ctx.shadowBlur = 0;
-                demoAnim = requestAnimationFrame(draw);
-            }
-            draw();
-        }
-        
-        playBtn.addEventListener('click', toggle);
-        demoViz();
-        
-        window.addEventListener('beforeunload', () => {
-            if (audio) audio.pause();
-            if (ctxAudio) ctxAudio.close();
-            if (animation) cancelAnimationFrame(animation);
-            if (demoAnim) cancelAnimationFrame(demoAnim);
+        await new Promise((resolve, reject) => {
+            const tm = setTimeout(() => reject('Таймаут'), 15000);
+            newAudio.addEventListener('canplay', () => { 
+                clearTimeout(tm); 
+                resolve(); 
+            }, { once: true });
+            newAudio.addEventListener('error', (e) => { 
+                clearTimeout(tm); 
+                reject('Ошибка: ' + e.target.error?.message); 
+            }, { once: true });
+            newAudio.load();
         });
-    </script>
-</body>
-</html>
+        
+        audio = newAudio;
+        const ok = await initAudio();
+        if (!ok) throw new Error('Ошибка звука');
+        
+        if (ctxAudio && ctxAudio.state === 'suspended') await ctxAudio.resume();
+        await audio.play();
+        isPlaying = true;
+        playBtn.innerHTML = '⏹ STOP';
+        playBtn.classList.add('playing');
+        
+    } catch (err) {
+        console.error('Ошибка:', err);
+        isPlaying = false;
+        playBtn.innerHTML = '▶ PLAY';
+        playBtn.classList.remove('playing');
+        if (audio) { 
+            audio.pause(); 
+            audio.src = ''; 
+            audio.load();
+            audio = null; 
+        }
+    }
+}
+
+function stopRadio() {
+    if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = '';
+        audio.load();
+        audio = null;
+    }
+    isPlaying = false;
+    playBtn.innerHTML = '▶ PLAY';
+    playBtn.classList.remove('playing');
+    
+    if (ctxAudio && ctxAudio.state !== 'closed') {
+        if (animation) cancelAnimationFrame(animation);
+        try { ctxAudio.close(); } catch(e) {}
+        ctxAudio = null;
+        analyser = null;
+    }
+}
