@@ -204,7 +204,6 @@
             document.body.classList.add('offline-mode');
             if (isPlaying && audio) {
                 audio.pause();
-                stopRadio();
             }
         }
         
@@ -253,16 +252,10 @@
         }
         
         // ============================================================
-        // РАДИО ПЛЕЕР - ИСПРАВЛЕННАЯ ВЕРСИЯ
+        // РАДИО ПЛЕЕР
         // ============================================================
         
-        // Базовый URL потока
-        const STREAM_BASE = "https://radio.radiodjboga.online/stream";
-        
-        // Функция для получения URL с уникальным параметром (обход кэша)
-        function getStreamUrl() {
-            return STREAM_BASE + "?_=" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
-        }
+        const STREAM_URL = "https://radio.radiodjboga.online/stream";
         
         let audio = null;
         let ctxAudio = null;
@@ -270,7 +263,6 @@
         let analyser = null;
         let animation = null;
         let isPlaying = false;
-        let isConnecting = false;
         
         let freqData = null;
         let canvasW = 800;
@@ -300,22 +292,13 @@
         async function initAudio() {
             if (!audio) return false;
             
-            // Закрываем старый AudioContext если есть
             if (ctxAudio && ctxAudio.state !== 'closed') {
                 if (animation) cancelAnimationFrame(animation);
                 try { await ctxAudio.close(); } catch(e) {}
-                ctxAudio = null;
-                analyser = null;
             }
             
             try {
                 ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Восстанавливаем состояние если оно приостановлено
-                if (ctxAudio.state === 'suspended') {
-                    await ctxAudio.resume();
-                }
-                
                 source = ctxAudio.createMediaElementSource(audio);
                 analyser = ctxAudio.createAnalyser();
                 analyser.fftSize = 256;
@@ -333,7 +316,7 @@
                 startViz();
                 return true;
             } catch (err) {
-                console.error('Ошибка инициализации аудио:', err);
+                console.error(err);
                 return false;
             }
         }
@@ -412,26 +395,17 @@
         }
         
         async function startRadio() {
-            // Проверка интернета
             if (!navigator.onLine) {
                 showOfflineOverlay();
                 return;
             }
             
-            // Предотвращаем множественные попытки
-            if (isConnecting) return;
-            isConnecting = true;
-            
             try {
-                // Полная очистка старого аудио
                 if (audio) {
                     audio.pause();
                     audio.src = '';
-                    audio.load();
                     audio = null;
                 }
-                
-                // Закрываем старый AudioContext
                 if (ctxAudio && ctxAudio.state !== 'closed') {
                     if (animation) cancelAnimationFrame(animation);
                     try { await ctxAudio.close(); } catch(e) {}
@@ -439,127 +413,57 @@
                     analyser = null;
                 }
                 
-                // Создаем новое аудио с уникальным URL
                 const newAudio = new Audio();
                 newAudio.crossOrigin = 'anonymous';
-                newAudio.src = getStreamUrl(); // Уникальный URL для обхода кэша
-                newAudio.preload = 'none';
-                newAudio.autoplay = false;
+                newAudio.src = STREAM_URL;
+                newAudio.preload = 'auto';
                 
-                // Ожидаем загрузки с таймаутом
                 await new Promise((resolve, reject) => {
-                    const tm = setTimeout(() => {
-                        reject(new Error('Таймаут загрузки (15 секунд)'));
-                    }, 15000);
-                    
-                    newAudio.addEventListener('canplay', () => { 
-                        clearTimeout(tm); 
-                        resolve(); 
-                    }, { once: true });
-                    
-                    newAudio.addEventListener('error', (e) => { 
-                        clearTimeout(tm); 
-                        reject(new Error('Ошибка загрузки: ' + (e.target.error?.message || 'неизвестная'))); 
-                    }, { once: true });
-                    
-                    newAudio.addEventListener('stalled', () => {
-                        console.warn('Поток приостановлен, продолжаем попытку...');
-                    });
-                    
+                    const tm = setTimeout(() => reject('Таймаут'), 15000);
+                    newAudio.addEventListener('canplay', () => { clearTimeout(tm); resolve(); }, { once: true });
+                    newAudio.addEventListener('error', () => { clearTimeout(tm); reject('Ошибка'); }, { once: true });
                     newAudio.load();
                 });
                 
                 audio = newAudio;
-                
-                // Инициализация аудио контекста
                 const ok = await initAudio();
-                if (!ok) throw new Error('Не удалось инициализировать аудио');
+                if (!ok) throw new Error('Ошибка звука');
                 
-                // Воспроизведение
-                if (ctxAudio && ctxAudio.state === 'suspended') {
-                    await ctxAudio.resume();
-                }
-                
+                if (ctxAudio && ctxAudio.state === 'suspended') await ctxAudio.resume();
                 await audio.play();
                 isPlaying = true;
                 playBtn.innerHTML = '⏹ STOP';
                 playBtn.classList.add('playing');
                 
             } catch (err) {
-                console.error('Ошибка воспроизведения:', err);
+                console.error(err);
                 isPlaying = false;
                 playBtn.innerHTML = '▶ PLAY';
                 playBtn.classList.remove('playing');
-                
-                // Очистка при ошибке
-                if (audio) { 
-                    audio.pause(); 
-                    audio.src = ''; 
-                    audio.load();
-                    audio = null; 
-                }
-                
-                // Показываем ошибку пользователю
-                let errorMsg = 'Не удалось подключиться к радио';
-                if (err.message.includes('таймаут')) {
-                    errorMsg = 'Сервер не отвечает. Проверьте подключение';
-                } else if (err.message.includes('загрузки')) {
-                    errorMsg = 'Ошибка загрузки потока. Попробуйте позже';
-                }
-                alert(errorMsg);
-                
-            } finally {
-                isConnecting = false;
+                if (audio) { audio.pause(); audio.src = ''; audio = null; }
             }
         }
         
         function stopRadio() {
-            if (audio) {
-                audio.pause();
-                audio.currentTime = 0;
-                audio.src = '';
-                audio.load();
-                audio = null;
-            }
-            
+            if (audio) audio.pause();
             isPlaying = false;
             playBtn.innerHTML = '▶ PLAY';
             playBtn.classList.remove('playing');
-            
-            // Закрываем AudioContext
-            if (ctxAudio && ctxAudio.state !== 'closed') {
-                if (animation) cancelAnimationFrame(animation);
-                try { 
-                    ctxAudio.close(); 
-                } catch(e) {}
-                ctxAudio = null;
-                analyser = null;
-            }
-            
-            isConnecting = false;
         }
         
         function toggle() {
-            if (isConnecting) return;
-            
-            if (isPlaying) {
-                stopRadio();
-            } else {
-                startRadio();
-            }
+            if (isPlaying) stopRadio();
+            else startRadio();
         }
         
-        // Демонстрационная визуализация (работает когда радио остановлено)
         let demoAnim = null;
         function demoViz() {
             if (demoAnim) cancelAnimationFrame(demoAnim);
             function draw() {
-                // Если радио играет и есть анализатор - выходим из демо
                 if (analyser && isPlaying) {
                     if (demoAnim) cancelAnimationFrame(demoAnim);
                     return;
                 }
-                
                 ctx.clearRect(0, 0, canvasW, canvasH);
                 const bars = 48;
                 const half = bars / 2;
@@ -589,52 +493,14 @@
             draw();
         }
         
-        // Назначаем обработчик на кнопку
         playBtn.addEventListener('click', toggle);
-        
-        // Запускаем демо визуализацию при старте
         demoViz();
         
-        // Очистка при закрытии страницы
         window.addEventListener('beforeunload', () => {
-            if (audio) {
-                audio.pause();
-                audio.src = '';
-                audio = null;
-            }
-            if (ctxAudio && ctxAudio.state !== 'closed') {
-                try { ctxAudio.close(); } catch(e) {}
-            }
+            if (audio) audio.pause();
+            if (ctxAudio) ctxAudio.close();
             if (animation) cancelAnimationFrame(animation);
             if (demoAnim) cancelAnimationFrame(demoAnim);
-        });
-        
-        // Перехватываем ошибки аудио на случай проблем с воспроизведением
-        document.addEventListener('visibilitychange', () => {
-            // Если страница стала видимой и радио должно играть, но не играет
-            if (!document.hidden && isPlaying && audio) {
-                if (audio.paused) {
-                    console.log('Восстановление воспроизведения после скрытия');
-                    audio.play().catch(e => console.warn('Не удалось восстановить:', e));
-                }
-            }
-        });
-        
-        // Обработка ошибок воспроизведения
-        window.addEventListener('unhandledrejection', (event) => {
-            if (event.reason && event.reason.message && 
-                event.reason.message.includes('play')) {
-                console.warn('Ошибка воспроизведения:', event.reason);
-                if (isPlaying) {
-                    stopRadio();
-                    // Пытаемся переподключиться через 3 секунды
-                    setTimeout(() => {
-                        if (!isPlaying && !isConnecting && navigator.onLine) {
-                            startRadio();
-                        }
-                    }, 3000);
-                }
-            }
         });
     </script>
 </body>
