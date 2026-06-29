@@ -85,7 +85,6 @@
             border-radius: 12px;
         }
 
-        /* Стили для заглушки офлайн */
         .offline-overlay {
             display: none;
             position: fixed;
@@ -166,7 +165,6 @@
     </style>
 </head>
 <body>
-    <!-- Заглушка офлайн -->
     <div id="offlineOverlay" class="offline-overlay">
         <div class="offline-content">
             <div class="offline-icon">🌐</div>
@@ -194,7 +192,7 @@
 
     <script>
         // ============================================================
-        // ПРОВЕРКА ИНТЕРНЕТА И ПОКАЗ ЗАГЛУШКИ
+        // ПРОВЕРКА ИНТЕРНЕТА
         // ============================================================
         
         const offlineOverlay = document.getElementById('offlineOverlay');
@@ -204,6 +202,7 @@
             document.body.classList.add('offline-mode');
             if (isPlaying && audio) {
                 audio.pause();
+                stopRadio();
             }
         }
         
@@ -252,10 +251,15 @@
         }
         
         // ============================================================
-        // РАДИО ПЛЕЕР
+        // РАДИО ПЛЕЕР - ИСПРАВЛЕННАЯ ВЕРСИЯ (БЕЗ КЭШИРОВАНИЯ)
         // ============================================================
         
-        const STREAM_URL = "https://radio.radiodjboga.online/stream";
+        // Функция для получения URL с уникальным параметром (обход кэша)
+        function getStreamUrl() {
+            const baseUrl = "https://radio.radiodjboga.online/stream";
+            // Добавляем случайный параметр для обхода кэша
+            return baseUrl + "?_=" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+        }
         
         let audio = null;
         let ctxAudio = null;
@@ -263,6 +267,7 @@
         let analyser = null;
         let animation = null;
         let isPlaying = false;
+        let isConnecting = false;
         
         let freqData = null;
         let canvasW = 800;
@@ -295,10 +300,17 @@
             if (ctxAudio && ctxAudio.state !== 'closed') {
                 if (animation) cancelAnimationFrame(animation);
                 try { await ctxAudio.close(); } catch(e) {}
+                ctxAudio = null;
+                analyser = null;
             }
             
             try {
                 ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+                
+                if (ctxAudio.state === 'suspended') {
+                    await ctxAudio.resume();
+                }
+                
                 source = ctxAudio.createMediaElementSource(audio);
                 analyser = ctxAudio.createAnalyser();
                 analyser.fftSize = 256;
@@ -316,7 +328,7 @@
                 startViz();
                 return true;
             } catch (err) {
-                console.error(err);
+                console.error('Ошибка инициализации аудио:', err);
                 return false;
             }
         }
@@ -400,12 +412,20 @@
                 return;
             }
             
+            if (isConnecting) return;
+            isConnecting = true;
+            
             try {
+                // ============================================================
+                // ПОЛНАЯ ОЧИСТКА СТАРОГО АУДИО
+                // ============================================================
                 if (audio) {
                     audio.pause();
                     audio.src = '';
+                    audio.load();
                     audio = null;
                 }
+                
                 if (ctxAudio && ctxAudio.state !== 'closed') {
                     if (animation) cancelAnimationFrame(animation);
                     try { await ctxAudio.close(); } catch(e) {}
@@ -413,49 +433,117 @@
                     analyser = null;
                 }
                 
+                // ============================================================
+                // СОЗДАЕМ НОВОЕ АУДИО С УНИКАЛЬНЫМ URL (ОБХОД КЭША)
+                // ============================================================
                 const newAudio = new Audio();
                 newAudio.crossOrigin = 'anonymous';
-                newAudio.src = STREAM_URL;
-                newAudio.preload = 'auto';
+                newAudio.src = getStreamUrl(); // Уникальный URL!
+                newAudio.preload = 'none';
+                newAudio.autoplay = false;
                 
+                // ============================================================
+                // ОЖИДАЕМ ЗАГРУЗКИ
+                // ============================================================
                 await new Promise((resolve, reject) => {
-                    const tm = setTimeout(() => reject('Таймаут'), 15000);
-                    newAudio.addEventListener('canplay', () => { clearTimeout(tm); resolve(); }, { once: true });
-                    newAudio.addEventListener('error', () => { clearTimeout(tm); reject('Ошибка'); }, { once: true });
+                    const tm = setTimeout(() => {
+                        reject(new Error('Таймаут загрузки (15 секунд)'));
+                    }, 15000);
+                    
+                    newAudio.addEventListener('canplay', () => { 
+                        clearTimeout(tm); 
+                        resolve(); 
+                    }, { once: true });
+                    
+                    newAudio.addEventListener('error', (e) => { 
+                        clearTimeout(tm); 
+                        reject(new Error('Ошибка загрузки: ' + (e.target.error?.message || 'неизвестная'))); 
+                    }, { once: true });
+                    
                     newAudio.load();
                 });
                 
                 audio = newAudio;
-                const ok = await initAudio();
-                if (!ok) throw new Error('Ошибка звука');
                 
-                if (ctxAudio && ctxAudio.state === 'suspended') await ctxAudio.resume();
+                // ============================================================
+                // ИНИЦИАЛИЗАЦИЯ AUDIO CONTEXT
+                // ============================================================
+                const ok = await initAudio();
+                if (!ok) throw new Error('Не удалось инициализировать аудио');
+                
+                if (ctxAudio && ctxAudio.state === 'suspended') {
+                    await ctxAudio.resume();
+                }
+                
                 await audio.play();
                 isPlaying = true;
                 playBtn.innerHTML = '⏹ STOP';
                 playBtn.classList.add('playing');
                 
             } catch (err) {
-                console.error(err);
+                console.error('Ошибка воспроизведения:', err);
                 isPlaying = false;
                 playBtn.innerHTML = '▶ PLAY';
                 playBtn.classList.remove('playing');
-                if (audio) { audio.pause(); audio.src = ''; audio = null; }
+                
+                if (audio) { 
+                    audio.pause(); 
+                    audio.src = ''; 
+                    audio.load();
+                    audio = null; 
+                }
+                
+                let errorMsg = 'Не удалось подключиться к радио';
+                if (err.message.includes('таймаут')) {
+                    errorMsg = 'Сервер не отвечает. Проверьте подключение';
+                } else if (err.message.includes('загрузки')) {
+                    errorMsg = 'Ошибка загрузки потока. Попробуйте позже';
+                }
+                alert(errorMsg);
+                
+            } finally {
+                isConnecting = false;
             }
         }
         
         function stopRadio() {
-            if (audio) audio.pause();
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0; // Сброс позиции!
+                audio.src = '';
+                audio.load();
+                audio = null;
+            }
+            
             isPlaying = false;
             playBtn.innerHTML = '▶ PLAY';
             playBtn.classList.remove('playing');
+            
+            if (ctxAudio && ctxAudio.state !== 'closed') {
+                if (animation) cancelAnimationFrame(animation);
+                try { 
+                    ctxAudio.close(); 
+                } catch(e) {}
+                ctxAudio = null;
+                analyser = null;
+            }
+            
+            isConnecting = false;
         }
         
         function toggle() {
-            if (isPlaying) stopRadio();
-            else startRadio();
+            if (isConnecting) return;
+            
+            if (isPlaying) {
+                stopRadio();
+            } else {
+                startRadio();
+            }
         }
         
+        // ============================================================
+        // ДЕМО-ВИЗУАЛИЗАЦИЯ
+        // ============================================================
         let demoAnim = null;
         function demoViz() {
             if (demoAnim) cancelAnimationFrame(demoAnim);
@@ -464,6 +552,7 @@
                     if (demoAnim) cancelAnimationFrame(demoAnim);
                     return;
                 }
+                
                 ctx.clearRect(0, 0, canvasW, canvasH);
                 const bars = 48;
                 const half = bars / 2;
@@ -497,8 +586,14 @@
         demoViz();
         
         window.addEventListener('beforeunload', () => {
-            if (audio) audio.pause();
-            if (ctxAudio) ctxAudio.close();
+            if (audio) {
+                audio.pause();
+                audio.src = '';
+                audio = null;
+            }
+            if (ctxAudio && ctxAudio.state !== 'closed') {
+                try { ctxAudio.close(); } catch(e) {}
+            }
             if (animation) cancelAnimationFrame(animation);
             if (demoAnim) cancelAnimationFrame(demoAnim);
         });
